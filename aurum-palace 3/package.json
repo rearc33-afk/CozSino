@@ -1,0 +1,12 @@
+{
+  "name": "aurum-palace",
+  "version": "1.0.0",
+  "description": "A 3D casino maze in the browser: slots, blackjack, five card draw and lightning roulette, with a crowd of fake players.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node tools/test-maze.js && node tools/test-slots.js 300000 && node tools/test-poker.js && node tools/smoke.js",
+    "build": "node tools/build.js"
+  }
+}

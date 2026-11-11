@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aurum Palace Casino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Limelight&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="cross"></div>
+<div id="hud">
+  <div class="hudl">
+    <div class="bank"><small>Chips</small><b id="bal">$5,000</b></div>
+    <div class="sub">Gold chips <b id="found">0/0</b></div>
+  </div>
+  <div class="hudr">
+    <button class="pill" id="lbbtn">Leaderboard (L)</button>
+    <button class="pill" id="snd">Sound on</button>
+  </div>
+</div>
+<div id="map" title="Tap to enlarge (Tab)"><canvas width="170" height="136"></canvas></div>
+<div id="hint">WASD walk · mouse look · Shift run · E sit down · Esc leave table · Tab big map · M sound · L leaderboard</div>
+<div id="prompt" hidden><kbd>E</kbd><span id="ptxt"></span><button id="pbtn">Sit down</button></div>
+<div id="toast"></div>
+<div id="stick" hidden><div id="knob"></div></div>
+
+<div id="panel" hidden>
+  <div class="pw">
+    <div class="ph"><h3 id="gtitle"></h3><button class="btn" id="leave">Leave table</button></div>
+    <div id="gbody"></div>
+  </div>
+</div>
+
+<div id="board" class="veil" hidden>
+  <div class="sheet">
+    <div class="lbhead"><h2>High Rollers</h2><button class="btn" id="lbclose">Close (L)</button></div>
+    <p id="lbsub"></p>
+    <div class="lbrows" id="lbrows"></div>
+    <h4>Your nights</h4>
+    <div class="lbrows" id="lbmine"></div>
+  </div>
+</div>
+
+<div id="bust" class="veil bust" hidden>
+  <div class="sheet">
+    <h2>Out of chips</h2>
+    <p>Security walks you to the door. Your night is over.</p>
+    <div class="bigstat" id="bustpeak"></div>
+    <p>Your highest stack tonight. You are now marked as kicked out on the leaderboard.</p>
+    <div class="row"><button class="btn" id="bustboard">See leaderboard</button><button class="btn pri" id="bustnew">Start a new night with $5,000</button></div>
+  </div>
+</div>
+
+<div id="intro">
+  <div class="card-i">
+    <h1>Aurum Palace</h1>
+    <p>A windowless, wide-open casino floor with a maze woven into the carpet. Follow the golden ribbons to the seven gaming rooms, hunt the gold chips at the dead ends, and sit down wherever there is a free seat. You start with $5,000 of play money. Go broke and security throws you out. Your chips are saved in this browser.</p>
+    <div class="keys" id="keys">
+      <span>W A S D</span><span>Walk, mouse to look</span>
+      <span>Shift</span><span>Run</span>
+      <span>E</span><span>Sit at a free machine or table</span>
+      <span>Esc</span><span>Leave the table</span>
+      <span>Tab</span><span>Enlarge the map</span>
+      <span>L</span><span>Leaderboard</span>
+    </div>
+    <form id="login" autocomplete="on" novalidate>
+      <div id="welcome" hidden><b id="wname"></b><button type="button" class="lnk" id="switch">Not you? Switch account</button></div>
+      <div id="fields">
+        <label>Email<input id="lemail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label>Username<input id="luser" type="text" maxlength="16" autocomplete="nickname" placeholder="Shown on the leaderboard" required></label>
+      </div>
+      <div id="lerr" role="alert" hidden></div>
+      <button class="go" id="enter" type="submit">Walk in</button>
+      <small>Your email only identifies your saved chips on this device. No password, nothing is sent anywhere.</small>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE || document.write('<script src="vendor/three.min.js"><\/script>')</script>
+<script src="js/util.js"></script>
+<script src="js/maze.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/run.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/carpet.js"></script>
+<script src="js/props.js"></script>
+<script src="js/npcs.js"></script>
+<script src="js/build.js"></script>
+<script src="js/anim.js"></script>
+<script src="js/games/slotmath.js"></script>
+<script src="js/games/pokermath.js"></script>
+<script src="js/games/slots.js"></script>
+<script src="js/games/blackjack.js"></script>
+<script src="js/games/poker.js"></script>
+<script src="js/games/holdem.js"></script>
+<script src="js/games/roulette.js"></script>
+<script src="js/world.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

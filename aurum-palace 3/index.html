@@ -1,0 +1,2379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aurum Palace Casino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Limelight&display=swap">
+<style>
+/* Layout: full-bleed 3D canvas, HUD pinned to edges, bottom sheet for table games */
+:root{
+  color-scheme:dark;
+  --ink:#140609; --velvet:#8f1018; --ember:#ee6a1f; --gold:#f2b84b;
+  --ice:#e6f1fb; --ice-dim:#9fb6c9; --line:rgba(242,184,75,.38);
+  --display:'Limelight',Georgia,'Times New Roman',serif;
+  --body:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;overflow:hidden}
+body{margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0;background:var(--ink);color:var(--ice);font:14px/1.4 var(--body);-webkit-user-select:none;user-select:none}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;background:var(--ink)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+
+#hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;pointer-events:none;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+#hud>*{pointer-events:auto}
+.bank{background:rgba(20,6,9,.78);border:1px solid var(--line);border-radius:10px;padding:6px 14px;display:flex;flex-direction:column;gap:0}
+.bank small{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ice-dim)}
+.bank b{font:400 24px/1.1 var(--display);color:var(--gold);font-variant-numeric:tabular-nums}
+.hudr{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.pill{background:rgba(20,6,9,.78);border:1px solid var(--line);border-radius:999px;padding:8px 14px;min-height:38px}
+.pill:hover{border-color:var(--gold)}
+#cashier{background:var(--gold);color:#2a1503;border-color:var(--gold);font-weight:700}
+#hint{max-width:55vw;position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font-size:12px;color:var(--ice-dim);background:rgba(20,6,9,.6);padding:6px 10px;border-radius:8px;transition:opacity 1s;pointer-events:none}
+#cross{position:fixed;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;background:rgba(255,236,190,.8);pointer-events:none}
+#prompt{position:fixed;left:50%;bottom:calc(15% + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:rgba(20,6,9,.88);border:1px solid var(--gold);border-radius:999px;padding:8px 18px;font-weight:600;white-space:nowrap}
+#prompt kbd{background:var(--gold);color:#2a1503;border-radius:6px;padding:1px 8px;font:700 13px var(--body)}
+#prompt button{background:var(--gold);color:#2a1503;border:0;border-radius:999px;padding:8px 16px;font-weight:700;display:none}
+.touch #prompt kbd{display:none}.touch #prompt button{display:inline-block}
+#toast{position:fixed;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%);font:400 22px var(--display);color:var(--gold);text-shadow:0 0 18px rgba(238,106,31,.9);text-align:center;pointer-events:none;opacity:0;transition:opacity .3s;max-width:92vw}
+#toast.on{opacity:1}
+#toast.bad{color:var(--ice-dim);text-shadow:none}
+
+#stick{position:fixed;width:110px;height:110px;margin:-55px;border-radius:50%;border:2px solid rgba(242,184,75,.5);background:rgba(20,6,9,.35);pointer-events:none}
+#knob{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:50%;background:rgba(242,184,75,.7)}
+
+#intro{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));
+  background:radial-gradient(ellipse at 50% 40%,rgba(60,10,14,.55),rgba(14,4,7,.93));backdrop-filter:blur(5px);z-index:20;overflow:auto}
+.card-i{max-width:560px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center}
+.card-i h1{font:400 clamp(40px,9vw,72px)/1 var(--display);margin:0;color:var(--gold);text-shadow:0 0 30px rgba(238,106,31,.7);text-wrap:balance}
+.card-i p{margin:0;color:var(--ice-dim);max-width:46ch}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;text-align:left;font-size:13px;color:var(--ice)}
+.keys span:nth-child(odd){color:var(--gold);font-weight:700}
+.go{background:linear-gradient(180deg,#f7c85c,#e0902a);color:#2a1503;border:0;border-radius:999px;padding:14px 34px;font:400 20px var(--display);letter-spacing:.04em;box-shadow:0 0 30px rgba(238,106,31,.5)}
+
+#panel{position:fixed;left:0;right:0;bottom:0;z-index:10;max-height:58vh;max-height:58dvh;overflow:auto;background:linear-gradient(180deg,rgba(24,7,11,.9),rgba(12,4,7,.97));border-top:1px solid var(--line);backdrop-filter:blur(10px);
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.pw{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ph h3{margin:0;font:400 22px var(--display);color:var(--gold)}
+.btn{background:transparent;border:1px solid var(--line);border-radius:10px;padding:10px 18px;min-height:44px;font-weight:700}
+.btn:hover:not(:disabled){border-color:var(--gold)}
+.btn.pri{background:linear-gradient(180deg,#f7c85c,#e0902a);color:#2a1503;border-color:#f7c85c}
+.btn.ice{background:var(--ice);color:#14202c;border-color:var(--ice)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.c{justify-content:center}
+.msg{min-height:22px;text-align:center;color:var(--ice);font-weight:600}
+.msg.win{color:var(--gold)}
+.chip{width:50px;height:50px;border-radius:50%;border:0;font:700 14px var(--body);background:var(--c,#e6f1fb);color:var(--t,#14202c);box-shadow:inset 0 0 0 5px var(--c,#e6f1fb),inset 0 0 0 7px rgba(255,255,255,.85),0 3px 0 rgba(0,0,0,.5);flex:none}
+.chip[data-v="1"],.chip[data-v="5"]{--c:#e6f1fb;--t:#14202c}
+.chip[data-v="10"]{--c:#4a90c8;--t:#fff}
+.chip[data-v="25"]{--c:#ee6a1f;--t:#fff}
+.chip[data-v="50"]{--c:#c9a227;--t:#2a1503}
+.chip[data-v="100"]{--c:#8f1018;--t:#f2b84b}
+.chip[data-v="500"]{--c:#f2b84b;--t:#2a1503}
+.chip.on{outline:3px solid var(--gold);outline-offset:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:620px){.grid2{grid-template-columns:1fr}}
+.hand h4{margin:0 0 6px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ice-dim)}
+.hand h4 b{color:var(--gold);margin-left:6px;font-size:15px}
+.cards{display:flex;gap:6px;min-height:84px;flex-wrap:wrap}
+.card{width:56px;height:82px;border-radius:7px;background:#f1f7fd;color:#14202c;display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 22px/1 var(--body);box-shadow:0 2px 6px rgba(0,0,0,.5);border:0;padding:0;position:relative}
+.card i{font-style:normal;font-size:24px}
+.card.red{color:#c4202b}
+.card.back{background:repeating-linear-gradient(45deg,#8f1018 0 6px,#6d0a12 6px 12px);box-shadow:inset 0 0 0 3px #f2b84b,0 2px 6px rgba(0,0,0,.5)}
+.card.held{transform:translateY(-8px);box-shadow:0 0 0 3px var(--gold),0 2px 6px rgba(0,0,0,.5)}
+.card.held::after{content:'HOLD';position:absolute;bottom:-16px;font:700 9px var(--body);letter-spacing:.1em;color:var(--gold)}
+.pay{font-size:12px;color:var(--ice-dim);text-align:center}
+.board-wrap{overflow-x:auto;padding-bottom:4px}
+.board{display:grid;grid-template-columns:repeat(14,minmax(30px,1fr));grid-auto-rows:38px;gap:3px;min-width:440px}
+.cell{position:relative;border:1px solid rgba(159,182,201,.55);background:#eef5fb;color:#14202c;border-radius:4px;font:700 13px var(--body);padding:0}
+.cell.red{background:#c8323c;color:#fff;border-color:#c8323c}
+.cell.blk{background:#1d2430;color:#fff;border-color:#1d2430}
+.cell.zero{background:#1f8a5a;color:#fff;border-color:#1f8a5a}
+.cell.out{font-size:11px}
+.cell em{position:absolute;right:-2px;top:-5px;font:700 10px var(--body);font-style:normal;background:var(--gold);color:#2a1503;border-radius:9px;padding:1px 5px;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+.hist{display:flex;gap:4px;flex-wrap:wrap}
+.pip{min-width:26px;text-align:center;border-radius:5px;padding:2px 4px;font:700 12px var(--body);color:#fff}
+.pip.red{background:#c8323c}.pip.blk{background:#1d2430;border:1px solid #445}.pip.zero{background:#1f8a5a}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+
+/* ---- HUD additions ---- */
+.hudl{display:flex;flex-direction:column;gap:6px;align-items:flex-start;pointer-events:none}
+.hudl>*{pointer-events:auto}
+.sub{background:rgba(20,6,9,.7);border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:12px;color:var(--ice-dim)}
+.sub b{color:var(--gold);font-variant-numeric:tabular-nums}
+.dot{opacity:.5;margin:0 2px}
+#map{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));background:rgba(14,4,7,.8);border:1px solid var(--line);border-radius:10px;padding:4px;cursor:pointer;z-index:5}
+#map canvas{display:block;max-width:100%}
+#map.big{right:50%;bottom:50%;transform:translate(50%,50%);padding:10px;z-index:15;background:rgba(14,4,7,.94)}
+body.seated #map{display:none}
+@media(max-width:620px){#map canvas{max-width:42vw;height:auto!important}#map.big canvas{max-width:92vw}.hudr .pill{padding:6px 10px;min-height:34px;font-size:12px}}
+
+/* ---- slots ---- */
+.slotbar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ice-dim)}
+.slotbar b{color:var(--gold);font-variant-numeric:tabular-nums}
+.reels3{display:flex;gap:10px;justify-content:center}
+.reel3{width:92px;height:174px;overflow:hidden;border-radius:10px;background:#fff3d6;box-shadow:inset 0 0 0 4px #e0902a,inset 0 10px 16px rgba(0,0,0,.28),inset 0 -10px 16px rgba(0,0,0,.28)}
+.strip{will-change:transform}
+.sym{height:58px;display:flex;align-items:center;justify-content:center;font:900 34px/1 var(--body)}
+.sym.bar{font-size:20px;letter-spacing:.02em}
+.sym.hit{animation:hit .5s ease-in-out infinite alternate;background:rgba(238,106,31,.28)}
+@keyframes hit{to{background:rgba(242,184,75,.7);transform:scale(1.08)}}
+.gcard{width:56px;height:80px;border-radius:7px;display:flex;align-items:center;justify-content:center;font:700 30px var(--body);background:repeating-linear-gradient(45deg,#8f1018 0 6px,#6d0a12 6px 12px);box-shadow:inset 0 0 0 3px var(--gold);color:var(--gold)}
+.gcard.r{background:#f1f7fd;color:#c4202b;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.gcard.b{background:#f1f7fd;color:#14202c;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.btn.red{background:#c8323c;border-color:#c8323c;color:#fff}
+.btn.blk{background:#1d2430;border-color:#445;color:#fff}
+.btn.small{min-height:44px;padding:8px 12px}
+.btn.on{border-color:var(--gold);color:var(--gold)}
+.mini{background:transparent;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px}
+
+/* ---- card games ---- */
+.bjtop{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;color:var(--ice-dim)}
+.sess.up{color:var(--gold)}.sess.dn{color:#e07a6a}
+.hands{display:flex;gap:18px;flex-wrap:wrap}
+.hand em{font-style:normal;margin-left:8px;font-size:12px;color:var(--ice-dim)}
+.hand.act .cards{outline:2px solid var(--gold);outline-offset:6px;border-radius:8px}
+.bots{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:620px){.bots{grid-template-columns:1fr}}
+.hand.folded{opacity:.45}
+.cards.sm .card{width:42px;height:60px;font-size:16px}
+.cards.sm .card i{font-size:17px}
+.card.fresh{animation:deal .35s ease-out}
+@keyframes deal{from{transform:translateY(-26px) rotate(-6deg);opacity:0}to{transform:none;opacity:1}}
+
+/* ---- roulette ---- */
+.lightning{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.lightning span{background:linear-gradient(180deg,#bfe6ff,#7ab8ec);color:#06223a;border-radius:999px;padding:2px 12px;font-weight:700;box-shadow:0 0 14px rgba(150,210,255,.6)}
+.lightning b{margin-left:4px}
+.cell.lucky{box-shadow:0 0 0 2px #8fd0ff,0 0 12px #8fd0ff;z-index:1}
+.cell sup{position:absolute;left:1px;top:0;font-size:9px;line-height:1;color:#8fd0ff;font-weight:700}
+.cell.red sup,.cell.blk sup{color:#d4ecff}
+.hot{font-size:12px;color:var(--ice-dim)}
+
+@media(prefers-reduced-motion:reduce){.sym.hit,.card.fresh{animation:none}}
+
+/* ---- leaderboard and bust screens ---- */
+.veil{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px max(16px,env(safe-area-inset-right,0px)) 20px max(16px,env(safe-area-inset-left,0px));background:radial-gradient(ellipse at 50% 40%,rgba(60,10,14,.7),rgba(10,3,6,.94));backdrop-filter:blur(5px);overflow:auto}
+.sheet{width:min(560px,100%);max-height:100%;overflow:auto;background:linear-gradient(180deg,rgba(32,9,13,.96),rgba(16,5,8,.98));border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.sheet h2{margin:0;font:400 28px/1.1 var(--display);color:var(--gold);text-wrap:balance}
+.sheet p{margin:0;color:var(--ice-dim)}
+.lbhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.lbrows{display:flex;flex-direction:column;gap:3px}
+.lbrow{display:grid;grid-template-columns:2.2em 1fr auto auto;gap:10px;align-items:center;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.04);font-variant-numeric:tabular-nums}
+.lbrow .rk{color:var(--ice-dim)}
+.lbrow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbrow .ch{font-weight:700;color:var(--ice)}
+.lbrow .st{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ice-dim);min-width:5.6em;text-align:right}
+.lbrow.you{background:rgba(242,184,75,.2);box-shadow:inset 0 0 0 1px var(--gold)}
+.lbrow.you .nm,.lbrow.you .ch{color:var(--gold)}
+.lbrow.out{opacity:.7}
+.lbrow.out .ch{color:#e07a6a}
+.lbrow.out .st{color:#e07a6a;font-weight:700}
+.sheet h4{margin:6px 0 0;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ice-dim)}
+.bust h2{color:#ff8a6a}
+.bigstat{font:400 44px/1 var(--display);color:var(--gold)}
+
+#login{display:flex;flex-direction:column;gap:10px;align-items:stretch;width:min(340px,100%);text-align:left}
+#login label{display:flex;flex-direction:column;gap:4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ice-dim)}
+#login input{font:inherit;font-size:16px;letter-spacing:0;text-transform:none;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(10,3,6,.7);color:#fff;min-width:0}
+#login input:focus{outline:2px solid var(--gold);outline-offset:1px}
+#login #fields{display:flex;flex-direction:column;gap:10px}
+#login small{color:var(--ice-dim);text-align:center;font-size:12px}
+#welcome{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--gold);font-size:20px}
+#lerr{color:#ff8a6a;font-size:14px;text-align:center}
+.lnk{background:none;border:0;color:var(--ice-dim);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px}
+
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="cross"></div>
+<div id="hud">
+  <div class="hudl">
+    <div class="bank"><small>Chips</small><b id="bal">$5,000</b></div>
+    <div class="sub">Gold chips <b id="found">0/0</b></div>
+  </div>
+  <div class="hudr">
+    <button class="pill" id="lbbtn">Leaderboard (L)</button>
+    <button class="pill" id="snd">Sound on</button>
+  </div>
+</div>
+<div id="map" title="Tap to enlarge (Tab)"><canvas width="170" height="136"></canvas></div>
+<div id="hint">WASD walk · mouse look · Shift run · E sit down · Esc leave table · Tab big map · M sound · L leaderboard</div>
+<div id="prompt" hidden><kbd>E</kbd><span id="ptxt"></span><button id="pbtn">Sit down</button></div>
+<div id="toast"></div>
+<div id="stick" hidden><div id="knob"></div></div>
+
+<div id="panel" hidden>
+  <div class="pw">
+    <div class="ph"><h3 id="gtitle"></h3><button class="btn" id="leave">Leave table</button></div>
+    <div id="gbody"></div>
+  </div>
+</div>
+
+<div id="board" class="veil" hidden>
+  <div class="sheet">
+    <div class="lbhead"><h2>High Rollers</h2><button class="btn" id="lbclose">Close (L)</button></div>
+    <p id="lbsub"></p>
+    <div class="lbrows" id="lbrows"></div>
+    <h4>Your nights</h4>
+    <div class="lbrows" id="lbmine"></div>
+  </div>
+</div>
+
+<div id="bust" class="veil bust" hidden>
+  <div class="sheet">
+    <h2>Out of chips</h2>
+    <p>Security walks you to the door. Your night is over.</p>
+    <div class="bigstat" id="bustpeak"></div>
+    <p>Your highest stack tonight. You are now marked as kicked out on the leaderboard.</p>
+    <div class="row"><button class="btn" id="bustboard">See leaderboard</button><button class="btn pri" id="bustnew">Start a new night with $5,000</button></div>
+  </div>
+</div>
+
+<div id="intro">
+  <div class="card-i">
+    <h1>Aurum Palace</h1>
+    <p>A windowless, wide-open casino floor with a maze woven into the carpet. Follow the golden ribbons to the seven gaming rooms, hunt the gold chips at the dead ends, and sit down wherever there is a free seat. You start with $5,000 of play money. Go broke and security throws you out. Your chips are saved in this browser.</p>
+    <div class="keys" id="keys">
+      <span>W A S D</span><span>Walk, mouse to look</span>
+      <span>Shift</span><span>Run</span>
+      <span>E</span><span>Sit at a free machine or table</span>
+      <span>Esc</span><span>Leave the table</span>
+      <span>Tab</span><span>Enlarge the map</span>
+      <span>L</span><span>Leaderboard</span>
+    </div>
+    <form id="login" autocomplete="on" novalidate>
+      <div id="welcome" hidden><b id="wname"></b><button type="button" class="lnk" id="switch">Not you? Switch account</button></div>
+      <div id="fields">
+        <label>Email<input id="lemail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label>Username<input id="luser" type="text" maxlength="16" autocomplete="nickname" placeholder="Shown on the leaderboard" required></label>
+      </div>
+      <div id="lerr" role="alert" hidden></div>
+      <button class="go" id="enter" type="submit">Walk in</button>
+      <small>Your email only identifies your saved chips on this device. No password, nothing is sent anywhere.</small>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE || document.write('<script src="vendor/three.min.js"><\/script>')</script>
+<script>
+/* Aurum Palace - shared helpers. Plain scripts share one global: Casino. */
+(function (G) {
+  var C = G.Casino = G.Casino || {};
+  C.clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  C.fmt = function (n) { return '$' + Math.round(n).toLocaleString('en-US'); };
+  C.mulberry32 = function (a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  };
+  C.rnd = function (a, b, r) { return a + (r || Math.random)() * (b - a); };
+  C.pick = function (arr, r) { return arr[Math.floor((r || Math.random)() * arr.length)]; };
+  C.shuffle = function (arr, r) {
+    r = r || Math.random;
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(r() * (i + 1)), t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  };
+  C.$ = function (s) { return typeof document !== 'undefined' ? document.querySelector(s) : null; };
+  C.store = {
+    get: function (k, d) { try { var v = localStorage.getItem('aurum_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem('aurum_' + k, JSON.stringify(v)); } catch (e) { /* storage may be blocked */ } }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - seeded maze generator (pure logic, no THREE). */
+(function (G) {
+  var C = G.Casino = G.Casino || {};
+  var COLS = 11, ROWS = 11, CELL = 6, DOOR = 3.4;
+  var TYPES = ['slots', 'blackjack', 'poker', 'holdem', 'roulette'];
+  var DX = [0, 1, 0, -1], DZ = [-1, 0, 1, 0]; // N E S W
+
+  function Maze() {
+    this.cols = COLS; this.rows = ROWS; this.cell = CELL;
+    this.w = COLS * CELL; this.d = ROWS * CELL;
+    this.h = []; this.v = []; this.area = []; this.areas = [];
+    for (var r = 0; r <= ROWS; r++) { this.h.push(new Array(COLS).fill(0)); }
+    for (r = 0; r < ROWS; r++) { this.v.push(new Array(COLS + 1).fill(0)); }
+    for (r = 0; r < ROWS; r++) this.area.push(new Array(COLS).fill(-1));
+  }
+  var P = Maze.prototype;
+  // edge value: 0 wall, 1 doorway, 2 open floor
+  P.edge = function (c, r, d) {
+    if (d === 0) return this.h[r][c];
+    if (d === 2) return this.h[r + 1][c];
+    if (d === 3) return this.v[r][c];
+    return this.v[r][c + 1];
+  };
+  P.setEdge = function (c, r, d, val) {
+    if (d === 0) this.h[r][c] = val; else if (d === 2) this.h[r + 1][c] = val;
+    else if (d === 3) this.v[r][c] = val; else this.v[r][c + 1] = val;
+  };
+  P.inside = function (c, r) { return c >= 0 && r >= 0 && c < COLS && r < ROWS; };
+  P.center = function (c, r) { return { x: (c - (COLS - 1) / 2) * CELL, z: (r - (ROWS - 1) / 2) * CELL }; };
+  P.cellAt = function (x, z) {
+    return { c: Math.floor((x + this.w / 2) / CELL), r: Math.floor((z + this.d / 2) / CELL) };
+  };
+  P.areaAt = function (c, r) { var a = this.inside(c, r) ? this.area[r][c] : -1; return a < 0 ? null : this.areas[a]; };
+  P.neighbors = function (c, r) {
+    var out = [];
+    for (var d = 0; d < 4; d++) {
+      if (this.edge(c, r, d) > 0) { var nc = c + DX[d], nr = r + DZ[d]; if (this.inside(nc, nr)) out.push({ c: nc, r: nr, d: d }); }
+    }
+    return out;
+  };
+  // the atrium's centre cell holds the jackpot pillar, so crowd pathing treats it as solid
+  P.isBlocked = function (c, r) { return this.block === r * COLS + c; };
+  P.path = function (a, b) {
+    var key = function (c, r) { return r * COLS + c; }, prev = {}, q = [a], seen = {}, self = this;
+    seen[key(a.c, a.r)] = true;
+    for (var i = 0; i < q.length; i++) {
+      var cur = q[i];
+      if (cur.c === b.c && cur.r === b.r) break;
+      var ns = this.neighbors(cur.c, cur.r);
+      for (var k = 0; k < ns.length; k++) {
+        var n = ns[k], kk = key(n.c, n.r);
+        if (!seen[kk] && !self.isBlocked(n.c, n.r)) { seen[kk] = true; prev[kk] = cur; q.push({ c: n.c, r: n.r }); }
+      }
+    }
+    var out = [], cur2 = { c: b.c, r: b.r };
+    while (cur2 && !(cur2.c === a.c && cur2.r === a.r)) { out.push(cur2); cur2 = prev[key(cur2.c, cur2.r)]; }
+    out.reverse();
+    return out;
+  };
+  P.doorCount = function (area) {
+    var n = 0;
+    for (var r = area.r0; r <= area.r1; r++) for (var c = area.c0; c <= area.c1; c++)
+      for (var d = 0; d < 4; d++) {
+        var nc = c + DX[d], nr = r + DZ[d];
+        if (this.inside(nc, nr) && this.area[nr][nc] !== area.id && this.edge(c, r, d) === 1) n++;
+      }
+    return n;
+  };
+  P.deadEnds = function () {
+    var out = [];
+    for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) {
+      if (this.area[r][c] >= 0 || (c === this.entry.c && r === this.entry.r)) continue;
+      if (this.neighbors(c, r).length === 1) out.push({ c: c, r: r });
+    }
+    return out;
+  };
+
+  function generate(seed) {
+    var rng = C.mulberry32(seed), m = new Maze();
+    m.seed = seed;
+    m.entry = { c: (COLS - 1) / 2, r: ROWS - 1 };
+    m.block = ((ROWS - 1) / 2) * COLS + (COLS - 1) / 2;
+    var order = C.shuffle(TYPES.slice(), rng).concat(C.shuffle(TYPES.slice(), rng).slice(0, 2)); // every game appears, two repeat
+    var corners = [[0, 0], [COLS - 3, 0], [0, ROWS - 3], [COLS - 3, ROWS - 3], [(COLS - 3) / 2, 0], [0, (ROWS - 3) / 2], [COLS - 3, (ROWS - 3) / 2]];
+    var defs = corners.map(function (p, i) { return { type: order[i], c0: p[0], r0: p[1] }; });
+    defs.push({ type: 'hub', c0: (COLS - 3) / 2, r0: (ROWS - 3) / 2 });
+    defs.forEach(function (a, i) {
+      a.id = i; a.c1 = a.c0 + 2; a.r1 = a.r0 + 2;
+      var ctr = m.center(a.c0 + 1, a.r0 + 1); a.x = ctr.x; a.z = ctr.z;
+      m.areas.push(a);
+      for (var r = a.r0; r <= a.r1; r++) for (var c = a.c0; c <= a.c1; c++) {
+        m.area[r][c] = i;
+        if (c < a.c1) m.setEdge(c, r, 1, 2);
+        if (r < a.r1) m.setEdge(c, r, 2, 2);
+      }
+    });
+    // union-find over cells, areas pre-merged
+    var parent = []; for (var i = 0; i < COLS * ROWS; i++) parent.push(i);
+    var find = function (x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+    var key = function (c, r) { return r * COLS + c; };
+    m.areas.forEach(function (a) {
+      var root = key(a.c0, a.r0);
+      for (var r = a.r0; r <= a.r1; r++) for (var c = a.c0; c <= a.c1; c++) parent[find(key(c, r))] = find(root);
+    });
+    var edges = [];
+    for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) {
+      if (c < COLS - 1 && !(m.area[r][c] >= 0 && m.area[r][c] === m.area[r][c + 1])) edges.push([c, r, 1]);
+      if (r < ROWS - 1 && !(m.area[r][c] >= 0 && m.area[r][c] === m.area[r + 1][c])) edges.push([c, r, 2]);
+    }
+    C.shuffle(edges, rng);
+    var rest = [];
+    edges.forEach(function (e) {
+      var a = find(key(e[0], e[1])), b = find(key(e[0] + DX[e[2]], e[1] + DZ[e[2]]));
+      if (a !== b) { parent[a] = b; m.setEdge(e[0], e[1], e[2], 1); } else rest.push(e);
+    });
+    // braid: open some extra walls so the maze has loops, not only one route
+    var extra = Math.floor(rest.length * 0.12);
+    for (i = 0; i < extra; i++) m.setEdge(rest[i][0], rest[i][1], rest[i][2], 1);
+    // every game room gets 3+ doorways, the atrium 4+
+    m.areas.forEach(function (a) {
+      var need = a.type === 'hub' ? 4 : 3, cand = [];
+      for (var r = a.r0; r <= a.r1; r++) for (var c = a.c0; c <= a.c1; c++) for (var d = 0; d < 4; d++) {
+        var nc = c + DX[d], nr = r + DZ[d];
+        if (m.inside(nc, nr) && m.area[nr][nc] !== a.id && m.edge(c, r, d) === 0) cand.push([c, r, d]);
+      }
+      C.shuffle(cand, rng);
+      while (m.doorCount(a) < need && cand.length) { var e = cand.pop(); m.setEdge(e[0], e[1], e[2], 1); }
+    });
+    return m;
+  }
+
+  C.Maze = { COLS: COLS, ROWS: ROWS, CELL: CELL, DOOR: DOOR, DX: DX, DZ: DZ, generate: generate };
+  if (typeof module !== 'undefined') module.exports = C.Maze;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - chips, jackpot, toasts and small HTML helpers shared by the games. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$;
+
+  C.bank = {
+    balance: 5000,
+    set: function (n) {
+      this.balance = Math.max(0, Math.round(n));
+      var b = $('#bal'); if (b) b.textContent = C.fmt(this.balance);
+      if (C.Run) C.Run.onBalance(this.balance);
+    },
+    add: function (n) { this.set(this.balance + n); },
+    load: function () { this.set(C.Run ? C.Run.load() : 5000); }
+  };
+
+  // the progressive jackpot shown on the atrium pillar; slot bets feed it and it also creeps up on its own
+  C.Jackpot = {
+    value: 12500, base: 12500, saveT: 0,
+    load: function () { var v = C.store.get('jackpot', 12500); this.value = typeof v === 'number' && v >= this.base ? v : this.base; },
+    tick: function (dt) { this.value += dt * (0.4 + Math.random() * 1.1); this.saveT += dt; if (this.saveT > 5) { this.saveT = 0; C.store.set('jackpot', Math.round(this.value)); } },
+    feed: function (bet) { this.value += bet * 0.04; },
+    take: function () { var v = Math.round(this.value); this.value = this.base; C.store.set('jackpot', this.value); return v; }
+  };
+
+  var toastT = null;
+  C.toast = function (msg, bad) {
+    var t = $('#toast'); if (!t) return;
+    t.textContent = msg; t.className = 'on' + (bad ? ' bad' : '');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.className = ''; }, 2800);
+  };
+
+  var SUITS = ['♠︎', '♥︎', '♦︎', '♣︎'], RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+  C.ui = {
+    SUITS: SUITS, RANKS: RANKS,
+    card: function (c, hidden, o) {
+      o = o || {};
+      if (hidden) return '<div class="card back' + (o.fresh ? ' fresh' : '') + '"></div>';
+      var red = c.s === 1 || c.s === 2, tag = o.act ? 'button' : 'div';
+      return '<' + tag + ' class="card' + (red ? ' red' : '') + (o.held ? ' held' : '') + (o.fresh ? ' fresh' : '') + '"' + (o.act ? ' data-a="' + o.act + '" data-i="' + o.i + '"' : '') + '><span>' + RANKS[c.r] + '</span><i>' + SUITS[c.s] + '</i></' + tag + '>';
+    },
+    chips: function (vals, sel, act, cap) {
+      return vals.map(function (v) { return '<button class="chip' + (sel === v ? ' on' : '') + '" data-v="' + v + '" data-a="' + act + '"' + (cap !== undefined && v > cap ? ' disabled' : '') + '>' + v + '</button>'; }).join('');
+    },
+    shoe: function (n) {
+      var d = [], k, s, r;
+      for (k = 0; k < n; k++) for (s = 0; s < 4; s++) for (r = 0; r < 13; r++) d.push({ r: r, s: s });
+      return C.shuffle(d);
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - accounts, your night, the leaderboard and getting kicked out at zero.
+   There is no server: an account is a profile saved in this browser, and the leaderboard lists the accounts on this browser. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$, fmt = C.fmt;
+  var START = 5000;
+  var accts = {}, me = null, s = null, zeroT = 0, boardOpen = false, busted = false, lastRank = 0, rankT = 0;
+
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function freshAcct(user) { return { user: user, nights: [{ n: 1, started: Date.now(), peak: START, chips: START, status: 'playing' }] }; }
+  function cur() { return s.nights[s.nights.length - 1]; }
+  function save() { if (!me) return; accts[me] = s; C.store.set('accts', accts); C.store.set('me', me); }
+  function pull() { var a = C.store.get('accts', {}); accts = a && typeof a === 'object' ? a : {}; if (me && s) accts[me] = s; }
+  function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e); }
+
+  function standings() {
+    pull();
+    var rows = Object.keys(accts).map(function (k) {
+      var a = accts[k], n = a.nights[a.nights.length - 1];
+      return { name: a.user, chips: n.chips, out: n.status === 'out', you: k === me };
+    });
+    rows.sort(function (a, b) { return (a.out - b.out) || (b.chips - a.chips) || (a.you ? -1 : 1); });
+    return rows;
+  }
+  function rank() { var r = standings(); for (var i = 0; i < r.length; i++) if (r[i].you) return i + 1; return r.length; }
+  function rowH(rk, name, chips, status, you, out) {
+    return '<div class="lbrow' + (you ? ' you' : '') + (out ? ' out' : '') + '"><span class="rk">' + rk + '</span><span class="nm">' + name + '</span><span class="ch">' + fmt(chips) + '</span><span class="st">' + status + '</span></div>';
+  }
+
+  C.Run = {
+    START: START,
+    // called by bank.load at startup: restore the signed-in account, if any
+    load: function () {
+      pull(); var m = C.store.get('me', null);
+      if (m && accts[m]) { me = m; s = accts[m]; busted = cur().status === 'out'; lastRank = rank(); return cur().chips; }
+      me = null; s = null; busted = false; return START;
+    },
+    signedIn: function () { return !!me; },
+    username: function () { return me ? s.user : ''; },
+    email: function () { return me || ''; },
+    // returns an error string, or '' on success
+    signIn: function (email, user) {
+      email = String(email || '').trim().toLowerCase(); user = String(user || '').trim().replace(/\s+/g, ' ');
+      if (!validEmail(email)) return 'Enter a valid email address.';
+      pull(); var a = accts[email];
+      if (!user && a) user = a.user;
+      if (user.length < 2 || user.length > 16) return 'Pick a username of 2 to 16 characters.';
+      var taken = Object.keys(accts).some(function (k) { return k !== email && accts[k].user.toLowerCase() === user.toLowerCase(); });
+      if (taken) return 'That username is taken on this device.';
+      if (!a) a = accts[email] = freshAcct(user); else a.user = user;
+      me = email; s = a; save(); busted = cur().status === 'out'; lastRank = rank(); C.bank.set(cur().chips);
+      return '';
+    },
+    signOut: function () { if (me) save(); me = null; s = null; busted = false; zeroT = 0; C.store.set('me', null); },
+    isBusted: function () { return busted; },
+    blocking: function () { return boardOpen || busted; },
+    boardOpen: function () { return boardOpen; },
+    onBalance: function (b) { if (!s) return; var n = cur(); n.chips = b; if (b > n.peak) n.peak = b; save(); },
+    tick: function (dt, ctx) {
+      if (!s) return;
+      if (!busted && C.bank.balance === 0 && !(ctx && ctx.atRisk > 0)) { zeroT += dt; if (zeroT > 1.3) { zeroT = 0; this.bust(); } } else zeroT = 0;
+      rankT += dt; if (rankT > 1.5) { rankT = 0; var r = rank(); if (r < lastRank && !busted) C.toast('Leaderboard: you moved up to #' + r); lastRank = r; if (boardOpen) this.render(); }
+    },
+    bust: function () {
+      var n = cur(); n.status = 'out'; n.chips = 0; busted = true; save();
+      this.showBust(); C.Sfx.lose();
+    },
+    showBust: function () { var p = $('#bustpeak'); if (p) p.textContent = fmt(cur().peak); var b = $('#bust'); if (b) b.hidden = false; if (C.World.kickOut) C.World.kickOut(); },
+    newNight: function () {
+      s.nights.push({ n: cur().n + 1, started: Date.now(), peak: START, chips: START, status: 'playing' }); busted = false; zeroT = 0;
+      C.bank.set(START); save(); var b = $('#bust'); if (b) b.hidden = true; lastRank = rank();
+      if (C.World && C.World.restart) C.World.restart(); C.toast('New night. $5,000 in your pocket.');
+    },
+    open: function () {
+      var d = $('#board'); if (!d || !s) return; boardOpen = true; this.render(); d.hidden = false; var b = $('#bust'); if (b) b.style.visibility = 'hidden';
+      if (document.exitPointerLock) document.exitPointerLock();
+    },
+    close: function () { var d = $('#board'); if (d) d.hidden = true; boardOpen = false; var b = $('#bust'); if (b) b.style.visibility = ''; },
+    toggle: function () { if (boardOpen) this.close(); else this.open(); },
+    render: function () {
+      if (!s) return;
+      var rows = standings(), me1 = rank(), n = cur(), html = '', i, el;
+      for (i = 0; i < rows.length; i++) { var r = rows[i]; html += rowH(r.out ? '–' : '#' + (i + 1), esc(r.name) + (r.you ? ' (you)' : ''), r.chips, r.out ? 'Kicked out' : 'Playing', r.you, r.out); }
+      el = $('#lbrows'); if (el) el.innerHTML = html;
+      el = $('#lbsub'); if (el) el.textContent = n.status === 'out' ? s.user + ', night ' + n.n + ': you were kicked out with a peak of ' + fmt(n.peak) + '.' : s.user + ', night ' + n.n + ': you are #' + me1 + ' of ' + rows.length + ' with ' + fmt(n.chips) + ' (peak ' + fmt(n.peak) + '). Players on this device only.';
+      html = ''; for (i = s.nights.length - 1; i >= Math.max(0, s.nights.length - 8); i--) {
+        var x = s.nights[i], d = new Date(x.started), when = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        html += rowH('N' + x.n, when + ' · peak ' + fmt(x.peak), x.chips, x.status === 'out' ? 'Kicked out' : 'Playing', false, x.status === 'out');
+      }
+      el = $('#lbmine'); if (el) el.innerHTML = html;
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - everything you hear is synthesized live with the Web Audio API (no audio files). */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, clamp = C.clamp, rnd = C.rnd;
+  var ctx = null, master, bus, lp, gbus, noiseBuf, timer = null, muted = false, dd = null;
+  var S = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
+  var PENT = [784, 880, 1046.5, 1174.7, 1318.5, 1568, 1760, 2093, 2349];
+
+  function mkNoise(sec) { var b = ctx.createBuffer(1, ctx.sampleRate * sec, ctx.sampleRate), d = b.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  function mkImpulse(sec, dec) { var len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (var c = 0; c < 2; c++) { var d = b.getChannelData(c); for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, dec); } return b; }
+  function out(node, pan, dest) {
+    var n = node;
+    if (pan !== undefined && ctx.createStereoPanner) { var p = ctx.createStereoPanner(); p.pan.value = clamp(pan, -1, 1); node.connect(p); n = p; }
+    n.connect(dest || dd || bus);
+  }
+  function tone(f, t, d, v, type, pan, dest) {
+    var o = ctx.createOscillator(), g = ctx.createGain(); o.type = type || 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); out(g, pan, dest); o.start(t); o.stop(t + d + 0.05);
+  }
+  function burst(t, d, v, type, freq, q, pan, dest) {
+    var s = ctx.createBufferSource(); s.buffer = noiseBuf; var f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q || 1;
+    var g = ctx.createGain(); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(f); f.connect(g); out(g, pan, dest); s.start(t, Math.random() * 1.5, d + 0.05);
+  }
+  function bell(f, t, v, pan) { [[1, 1], [2.76, 0.5], [5.4, 0.22], [8.93, 0.1]].forEach(function (p) { tone(f * p[0], t, 1.2 / Math.sqrt(p[0]), v * p[1], 'sine', pan); }); }
+  function roll(t, pan) {
+    var n = Math.floor(rnd(8, 20)), tt = t, gap = 0.028;
+    for (var i = 0; i < n; i++) { burst(tt, 0.014, 0.16, 'highpass', 3200, 0.7, pan); tone(1400 + rnd(0, 500), tt, 0.02, 0.02, 'square', pan); tt += gap; gap *= 1.1; }
+    burst(tt, 0.06, 0.18, 'lowpass', 500, 0.8, pan); tone(95, tt, 0.12, 0.12, 'sine', pan);
+  }
+  function jingle(t, pan) {
+    var tt = t, idx = Math.floor(rnd(0, 4)), n = Math.floor(rnd(3, 7));
+    for (var i = 0; i < n; i++) { var f = PENT[idx]; tone(f, tt, 0.35, 0.05, 'triangle', pan); tone(f * 2.005, tt, 0.2, 0.02, 'sine', pan); tt += rnd(0.05, 0.09); idx = clamp(idx + (Math.random() < 0.7 ? 1 : -1), 0, 8); }
+  }
+  function cascade(t, pan, dur) {
+    var n = Math.floor(dur * 18);
+    for (var i = 0; i < n; i++) { var tt = t + rnd(0, dur); burst(tt, 0.06, 0.09, 'bandpass', rnd(4500, 9000), 6, pan + rnd(-0.1, 0.1)); tone(rnd(2400, 5200), tt, 0.09, 0.025, 'sine', pan); }
+  }
+  function jackpot(t, pan) {
+    var tt = t, i;
+    for (i = 0; i < 11; i++) { tone(523.25 * Math.pow(2, S[i] / 12), tt, 0.3, 0.06, 'triangle', pan); tt += 0.065; }
+    bell(1046.5, tt, 0.07, pan); bell(1318.5, tt, 0.06, pan); bell(1568, tt, 0.05, pan); cascade(tt - 0.2, pan, 2.2);
+    for (var k = 0; k < 8; k++) bell(1480 + (k % 2) * 220, t + 0.3 + k * 0.17, 0.04, pan);
+  }
+  function siren(t, pan) {
+    var o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 720; var l = ctx.createOscillator(); l.frequency.value = 3.2;
+    var lg = ctx.createGain(); lg.gain.value = 180; l.connect(lg); lg.connect(o.frequency);
+    var f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1700; var g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + 0.15); g.gain.setValueAtTime(0.03, t + 1.4); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    o.connect(f); f.connect(g); out(g, pan); o.start(t); l.start(t); o.stop(t + 1.9); l.stop(t + 1.9);
+  }
+  function pulse() {
+    if (!ctx || ctx.state === 'suspended') return;
+    var t = ctx.currentTime + 0.03, r = Math.random(), pan = rnd(-0.9, 0.9);
+    if (r < 0.26) roll(t, pan); else if (r < 0.46) jingle(t, pan); else if (r < 0.56) cascade(t, pan, rnd(0.8, 1.8));
+    else if (r < 0.63) bell(rnd(1100, 2000), t, 0.05, pan); else if (r < 0.645) jackpot(t, pan); else if (r < 0.655) siren(t, pan);
+    if (Math.random() < 0.25) roll(t + rnd(0.02, 0.2), rnd(-1, 1));
+  }
+  function game(fn) { dd = gbus; try { fn(ctx.currentTime + 0.02); } finally { dd = null; } }
+
+  C.Sfx = {
+    start: function () {
+      if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+      var AC = G.AudioContext || G.webkitAudioContext; if (!AC) return;
+      ctx = new AC(); noiseBuf = mkNoise(2);
+      var comp = ctx.createDynamicsCompressor(); master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(comp); comp.connect(ctx.destination);
+      bus = ctx.createGain(); bus.gain.value = 0.8; lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6000; bus.connect(lp); lp.connect(master);
+      gbus = ctx.createGain(); gbus.gain.value = 1; gbus.connect(master);
+      var conv = ctx.createConvolver(); conv.buffer = mkImpulse(2.2, 3); var send = ctx.createGain(); send.gain.value = 0.3; bus.connect(send); send.connect(conv); conv.connect(master);
+      var crowd = ctx.createBufferSource(); crowd.buffer = mkNoise(4); crowd.loop = true;
+      var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 420; bp.Q.value = 0.5; var cg = ctx.createGain(); cg.gain.value = 0.09;
+      var lfo = ctx.createOscillator(); lfo.frequency.value = 0.13; var lg = ctx.createGain(); lg.gain.value = 0.03; lfo.connect(lg); lg.connect(cg.gain);
+      crowd.connect(bp); bp.connect(cg); cg.connect(master); crowd.start(); lfo.start();
+      var hum = ctx.createOscillator(); hum.type = 'sine'; hum.frequency.value = 55; var hg = ctx.createGain(); hg.gain.value = 0.02; hum.connect(hg); hg.connect(master); hum.start();
+      timer = setInterval(pulse, 105);
+      for (var i = 0; i < 8; i++) setTimeout(pulse, i * 80);
+    },
+    toggle: function () { muted = !muted; if (master) master.gain.setTargetAtTime(muted ? 0 : 0.9, ctx.currentTime, 0.05); return muted; },
+    isMuted: function () { return muted; },
+    // loud = how near the slot floor you are, open = how open the space around you is (walls muffle the highs)
+    ambience: function (loud, open, seated) { if (!ctx) return; bus.gain.setTargetAtTime(seated ? 0.5 : 0.4 + 0.6 * loud, ctx.currentTime, 0.4); lp.frequency.setTargetAtTime(seated ? 5000 : 1500 + 7000 * open, ctx.currentTime, 0.3); },
+    // a sound at a place in the room: someone wins nearby
+    spot: function (kind, dist, pan) {
+      if (!ctx) return; var v = Math.pow(clamp(1 - dist / 26, 0, 1), 1.4); if (v < 0.03) return;
+      var g = ctx.createGain(); g.gain.value = v * 1.4; var p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      if (p) { p.pan.value = clamp(pan, -1, 1); g.connect(p); p.connect(master); } else g.connect(master);
+      dd = g; try { var t = ctx.currentTime + 0.02; if (kind === 'jackpot') jackpot(t); else { jingle(t); cascade(t + 0.25, 0, 0.8); bell(1568, t + 0.1, 0.05); } } finally { dd = null; }
+    },
+    chip: function () { if (!ctx) return; game(function (t) { burst(t, 0.05, 0.25, 'bandpass', 3200, 3); tone(1500, t, 0.06, 0.05, 'triangle'); }); },
+    coin: function () { if (!ctx) return; game(function (t) { tone(988, t, 0.1, 0.08, 'square'); tone(1319, t + 0.08, 0.35, 0.08, 'square'); bell(1976, t + 0.08, 0.04); }); },
+    card: function () { if (!ctx) return; game(function (t) { burst(t, 0.07, 0.2, 'highpass', 2500, 0.6); }); },
+    flip: function () { if (!ctx) return; game(function (t) { burst(t, 0.05, 0.16, 'bandpass', 4200, 2); tone(660, t + 0.03, 0.08, 0.04, 'triangle'); }); },
+    reelStop: function () { if (!ctx) return; game(function (t) { burst(t, 0.06, 0.2, 'lowpass', 500, 0.8); tone(95, t, 0.14, 0.16, 'sine'); }); },
+    reels: function (stops) {
+      if (!ctx) return;
+      game(function (t) {
+        var end = stops[stops.length - 1];
+        for (var tt = 0; tt < end; tt += 0.055) burst(t + tt, 0.012, 0.14, 'highpass', 3200, 0.7);
+        stops.forEach(function (s) { burst(t + s, 0.06, 0.2, 'lowpass', 500, 0.8); tone(95, t + s, 0.14, 0.16, 'sine'); });
+      });
+    },
+    rattle: function (D) {
+      if (!ctx) return;
+      game(function (t) {
+        var tt = 0; while (tt < D) { var u = tt / D; burst(t + tt, 0.012, 0.12 * (1 - u * 0.5), 'highpass', 2600, 0.8); tone(2200 + rnd(0, 600), t + tt, 0.02, 0.02, 'square'); tt += 0.04 + u * u * 0.4; }
+        burst(t + D, 0.08, 0.2, 'lowpass', 700, 0.8);
+      });
+    },
+    win: function (level) {
+      if (!ctx) return;
+      game(function (t) { if (level >= 2) jackpot(t, 0); else { for (var i = 0; i < 5; i++) tone(523.25 * Math.pow(2, S[i] / 12), t + i * 0.08, 0.35, 0.08, 'triangle'); cascade(t + 0.3, 0, 0.9); } });
+    },
+    lose: function () { if (!ctx) return; game(function (t) { tone(196, t, 0.4, 0.08, 'triangle'); tone(147, t + 0.18, 0.5, 0.08, 'triangle'); }); }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - renderer, lights, canvas textures, shared materials, geometry batching. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E = {};
+  E.RH = 4.6; // ceiling height
+
+  E.ctex = function (w, h, fn, rx, ry) {
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    fn(c.getContext('2d'), w, h);
+    var t = new THREE.CanvasTexture(c);
+    t.encoding = THREE.sRGBEncoding; t.anisotropy = E.aniso || 1;
+    if (rx) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); }
+    return t;
+  };
+  E.dia = function (g, cx, cy, r, f, s, lw) {
+    g.beginPath(); g.moveTo(cx, cy - r); g.lineTo(cx + r, cy); g.lineTo(cx, cy + r); g.lineTo(cx - r, cy); g.closePath();
+    if (f) { g.fillStyle = f; g.fill(); } if (s) { g.strokeStyle = s; g.lineWidth = lw; g.stroke(); }
+  };
+  E.glowTex = function () {
+    return E.ctex(128, 128, function (g) {
+      var gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    });
+  };
+
+  function carpet(pal, rx, ry) {
+    return E.ctex(256, 256, function (g) {
+      g.fillStyle = pal[0]; g.fillRect(0, 0, 256, 256);
+      E.dia(g, 128, 128, 120, pal[1], pal[3], 5); E.dia(g, 128, 128, 84, pal[0], pal[3], 3); E.dia(g, 128, 128, 40, pal[3]);
+      [[0, 0], [256, 0], [0, 256], [256, 256]].forEach(function (p) { E.dia(g, p[0], p[1], 120, pal[2], pal[3], 5); E.dia(g, p[0], p[1], 80, pal[1]); });
+      g.fillStyle = pal[3]; [[128, 0], [0, 128], [256, 128], [128, 256]].forEach(function (p) { g.beginPath(); g.arc(p[0], p[1], 9, 0, 7); g.fill(); });
+    }, rx, ry);
+  }
+  function wallTexture() {
+    return E.ctex(256, 512, function (g) {
+      var gr = g.createLinearGradient(0, 0, 0, 512); gr.addColorStop(0, '#7a0c12'); gr.addColorStop(1, '#a3141a');
+      g.fillStyle = gr; g.fillRect(0, 0, 256, 512);
+      g.strokeStyle = '#f0b84e'; g.lineWidth = 4; g.strokeRect(14, 14, 228, 370);
+      g.lineWidth = 1.5; g.globalAlpha = 0.6; g.strokeRect(28, 28, 200, 342); g.globalAlpha = 1;
+      E.dia(g, 128, 200, 64, null, '#f0b84e', 3); E.dia(g, 128, 200, 34, '#f0b84e');
+      g.fillStyle = '#4a070c'; g.fillRect(0, 410, 256, 102); g.fillStyle = '#f0b84e'; g.fillRect(0, 408, 256, 4);
+    }, 1, 1);
+  }
+  function screenAtlas() {
+    var syms = [['7', '#d6291a'], ['BAR', '#b8791a'], ['★', '#e09a10'], ['♦', '#c4202b'], ['♥', '#e0455a'], ['♣', '#2a3a4a']];
+    return E.ctex(2048, 160, function (g) {
+      for (var k = 0; k < 8; k++) {
+        var ox = k * 256, hot = k >= 6;
+        g.fillStyle = '#1a0709'; g.fillRect(ox, 0, 256, 160);
+        g.fillStyle = hot ? '#bfe4ff' : '#ee9a2e';
+        for (var i = 0; i < 16; i++) { g.beginPath(); g.arc(ox + 10 + i * 15.5, 8, 3.5, 0, 7); g.fill(); }
+        for (i = 0; i < 3; i++) {
+          g.fillStyle = '#fff3d6'; g.fillRect(ox + 14 + i * 80, 24, 70, 100);
+          var s = k === 6 ? syms[0] : k === 7 ? syms[1] : syms[Math.floor(Math.random() * 6)];
+          g.fillStyle = s[1]; g.font = (s[0] === 'BAR' ? '900 30px' : '900 56px') + ' Arial, sans-serif';
+          g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s[0], ox + 49 + i * 80, 76);
+        }
+        g.fillStyle = hot ? '#7ad0ff' : '#c98a2a'; g.font = '700 14px Arial'; g.fillText(hot ? 'JACKPOT' : 'SPIN TO WIN', ox + 128, 144);
+      }
+    });
+  }
+
+  E.init = function (canvas) {
+    try { E.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' }); }
+    catch (e) { return false; }
+    var r = E.renderer;
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    r.outputEncoding = THREE.sRGBEncoding; r.setClearColor(0x260a05);
+    E.aniso = r.capabilities.getMaxAnisotropy();
+    E.scene = new THREE.Scene(); E.scene.fog = new THREE.FogExp2(0x260a05, 0.021);
+    E.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 90);
+    // warm base light, a warm glow that follows the player, and cool flash lights that strobe
+    E.scene.add(new THREE.HemisphereLight(0xffa466, 0x4a0e08, 0.62));
+    E.light = new THREE.PointLight(0xff9a4a, 1.35, 16, 1.3); E.scene.add(E.light);
+    E.flash = [];
+    for (var i = 0; i < 5; i++) { var l = new THREE.PointLight(0x9fd8ff, 0, 13, 1.5); E.scene.add(l); E.flash.push({ light: l, t: 9, dur: 1, peak: 0, seq: 0 }); }
+    var M = E.M = {};
+    var wt = wallTexture(), RH = E.RH;
+    M.wall = new THREE.MeshLambertMaterial({ map: wt, emissiveMap: wt, emissive: 0xffffff, emissiveIntensity: 0.42 });
+    var pals = {
+      main: ['#a1121a', '#e8651e', '#c71e22', '#f4bf4f'],
+      gold: ['#c2410c', '#f59e0b', '#e8651e', '#ffd36a'],
+      deep: ['#7a0d14', '#c2410c', '#a1121a', '#f0b84e']
+    };
+    M.carpet = {};
+    for (var k in pals) {
+      var ct = carpet(pals[k], 1, 1);
+      M.carpet[k] = new THREE.MeshLambertMaterial({ map: ct, emissiveMap: ct, emissive: 0xffffff, emissiveIntensity: 0.5 });
+    }
+    var cl = E.ctex(256, 256, function (g) {
+      g.fillStyle = '#2a0b08'; g.fillRect(0, 0, 256, 256);
+      g.strokeStyle = '#f0b84e'; g.lineWidth = 9; g.beginPath(); g.arc(128, 128, 76, 0, 7); g.stroke();
+      g.fillStyle = '#ffd98a'; g.beginPath(); g.arc(128, 128, 54, 0, 7); g.fill();
+      g.fillStyle = '#f0b84e'; [[0, 0], [256, 0], [0, 256], [256, 256]].forEach(function (p) { g.beginPath(); g.arc(p[0], p[1], 12, 0, 7); g.fill(); });
+    }, 1, 1);
+    M.ceil = new THREE.MeshLambertMaterial({ map: cl, emissiveMap: cl, emissive: 0xffffff, emissiveIntensity: 1.0 });
+    M.gold = new THREE.MeshPhongMaterial({ color: 0xe8ae3c, emissive: 0x6a4608, shininess: 60, specular: 0xffe9a0 });
+    M.body = new THREE.MeshLambertMaterial({ color: 0x9a1119, emissive: 0x38050a });
+    M.bodyDark = new THREE.MeshLambertMaterial({ color: 0x4a0a10, emissive: 0x1a0308 });
+    M.felt = new THREE.MeshPhongMaterial({ color: 0xeef6ff, emissive: 0xbad0e8, emissiveIntensity: 0.5, shininess: 14 });
+    M.rim = new THREE.MeshPhongMaterial({ color: 0x3a0d10, emissive: 0x140304, shininess: 30 });
+    M.chair = new THREE.MeshLambertMaterial({ color: 0x7a0f17, emissive: 0x240408 });
+    M.dark = new THREE.MeshLambertMaterial({ color: 0x24100f });
+    M.wood = new THREE.MeshPhongMaterial({ color: 0x5a160e, emissive: 0x200603, shininess: 70, specular: 0xaa6644 });
+    M.btn = [0xff3b2f, 0xff8a1f, 0xffd24a].map(function (c) { return new THREE.MeshBasicMaterial({ color: c }); });
+    M.marq = [0, 1, 2].map(function () { return new THREE.MeshBasicMaterial({ color: 0x6a3a10 }); });
+    M.strobe = [0, 1, 2, 3].map(function () { return new THREE.MeshBasicMaterial({ color: 0x1a2a3a }); });
+    M.chase = [0, 1, 2, 3, 4, 5, 6, 7].map(function () { return new THREE.MeshBasicMaterial({ color: 0x20150f }); }); // ceiling chasers
+    M.sconce = new THREE.MeshBasicMaterial({ color: 0xffb347 });
+    M.neon = new THREE.MeshBasicMaterial({ color: 0xff7a1f });
+    M.coolNeon = new THREE.MeshBasicMaterial({ color: 0xbfe6ff });
+    M.chipGold = new THREE.MeshBasicMaterial({ color: 0xffcf5a });
+    M.cone = new THREE.MeshBasicMaterial({ color: 0xd2e8ff, transparent: true, opacity: 0.075, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    var gt = E.glowTex();
+    M.pool = new THREE.MeshBasicMaterial({ map: gt, color: 0xcfe6ff, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false });
+    M.halo = new THREE.SpriteMaterial({ map: gt, color: 0xffd25a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    var atlas = screenAtlas();
+    M.screens = []; E.screenTex = [];
+    for (i = 0; i < 6; i++) {
+      var t = atlas.clone(); t.needsUpdate = true; t.wrapS = THREE.RepeatWrapping; t.repeat.set(1 / 8, 1); t.offset.set(0, 0);
+      E.screenTex.push(t); M.screens.push(new THREE.MeshBasicMaterial({ map: t }));
+    }
+    M.npc = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    return true;
+  };
+
+  /* Batch: merge many static boxes/cylinders into one mesh per material (keeps draw calls low). */
+  function Batch() { this.m = new Map(); this.cache = {}; this.tmp = new THREE.Matrix4(); this.rot = new THREE.Matrix4(); }
+  Batch.prototype.add = function (geo, mat, mx, su, sv) {
+    var e = this.m.get(mat); if (!e) { e = { p: [], n: [], u: [] }; this.m.set(mat, e); }
+    var g = geo.index ? geo.toNonIndexed() : geo, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
+    var v = new THREE.Vector3(), nm = new THREE.Matrix3().getNormalMatrix(mx);
+    for (var i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i).applyMatrix4(mx); e.p.push(v.x, v.y, v.z);
+      if (N) { v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); e.n.push(v.x, v.y, v.z); } else e.n.push(0, 1, 0);
+      e.u.push(U ? U.getX(i) * (su || 1) : 0, U ? U.getY(i) * (sv || 1) : 0);
+    }
+    if (g !== geo) g.dispose();
+  };
+  Batch.prototype.xf = function (x, y, z, ry, rx) {
+    var m = this.tmp.makeRotationY(ry || 0);
+    if (rx) { this.rot.makeRotationX(rx); m.multiply(this.rot); }
+    return m.setPosition(x, y, z);
+  };
+  Batch.prototype.box = function (mat, w, h, d, x, y, z, ry, su, sv) {
+    var k = w + 'x' + h + 'x' + d, g = this.cache[k] || (this.cache[k] = new THREE.BoxGeometry(w, h, d));
+    this.add(g, mat, this.xf(x, y, z, ry), su, sv);
+  };
+  Batch.prototype.cyl = function (mat, rt, rb, h, seg, x, y, z, open, ry) {
+    var k = 'c' + [rt, rb, h, seg, open].join(','), g = this.cache[k] || (this.cache[k] = new THREE.CylinderGeometry(rt, rb, h, seg, 1, !!open));
+    this.add(g, mat, this.xf(x, y, z, ry));
+  };
+  Batch.prototype.plane = function (mat, w, h, x, y, z, ry, rx) {
+    var k = 'p' + w + 'x' + h, g = this.cache[k] || (this.cache[k] = new THREE.PlaneGeometry(w, h));
+    this.add(g, mat, this.xf(x, y, z, ry, rx));
+  };
+  Batch.prototype.build = function (parent, disposables) {
+    this.m.forEach(function (e, mat) {
+      var g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(e.p), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(e.n), 3));
+      g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(e.u), 2));
+      g.computeBoundingSphere();
+      parent.add(new THREE.Mesh(g, mat)); if (disposables) disposables.push(g);
+    });
+    for (var k in this.cache) this.cache[k].dispose();
+    this.m.clear(); this.cache = {};
+  };
+  E.Batch = Batch;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - the floor. The maze is printed on the carpet: golden ribbons wind between the gaming rooms. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E;
+  var ROOM = { slots: '#c2410c', blackjack: '#6e0b14', poker: '#a3151c', holdem: '#8a1030', roulette: '#52080e', hub: '#3a0508' };
+
+  C.Carpet = {
+    make: function (m) {
+      var S = 2048, w = m.w, d = m.d, cell = m.cell;
+      return E.ctex(S, S, function (g) {
+        g.setTransform(S / w, 0, 0, S / d, S / 2, S / 2); // draw in world units: x right, z down
+        var hw = w / 2, hd = d / 2, x, z;
+        g.fillStyle = '#85101a'; g.fillRect(-hw, -hd, w, d);
+        g.fillStyle = 'rgba(240,184,78,0.10)';
+        for (z = -hd; z < hd; z += 1) for (x = -hw + (Math.round(z) % 2 ? 0.5 : 0); x < hw; x += 1) { g.beginPath(); g.moveTo(x, z - 0.22); g.lineTo(x + 0.22, z); g.lineTo(x, z + 0.22); g.lineTo(x - 0.22, z); g.fill(); }
+        // gaming rooms
+        m.areas.forEach(function (a) {
+          var cx = a.x, cz = a.z, h = cell * 1.5;
+          g.fillStyle = ROOM[a.type]; g.fillRect(cx - h, cz - h, h * 2, h * 2);
+          g.fillStyle = 'rgba(255,200,90,0.13)';
+          for (z = cz - h + 1.5; z < cz + h; z += 3) for (x = cx - h + 1.5; x < cx + h; x += 3) { g.beginPath(); g.moveTo(x, z - 1.2); g.lineTo(x + 1.2, z); g.lineTo(x, z + 1.2); g.lineTo(x - 1.2, z); g.fill(); }
+          g.strokeStyle = '#f0b84e'; g.lineWidth = 0.22; g.strokeRect(cx - h + 0.3, cz - h + 0.3, h * 2 - 0.6, h * 2 - 0.6); g.lineWidth = 0.08; g.strokeRect(cx - h + 0.75, cz - h + 0.75, h * 2 - 1.5, h * 2 - 1.5);
+          if (a.type === 'hub') {
+            for (var k = 0; k < 4; k++) { g.beginPath(); g.arc(cx, cz, 2.2 + k * 1.7, 0, 7); g.lineWidth = k % 2 ? 0.1 : 0.25; g.strokeStyle = k % 2 ? '#e8651e' : '#f0b84e'; g.stroke(); }
+            for (k = 0; k < 8; k++) { var an = k * Math.PI / 4; g.beginPath(); g.moveTo(cx + Math.cos(an) * 2.2, cz + Math.sin(an) * 2.2); g.lineTo(cx + Math.cos(an) * 7.9, cz + Math.sin(an) * 7.9); g.lineWidth = 0.1; g.strokeStyle = '#f0b84e'; g.stroke(); }
+          }
+        });
+        // the maze: ribbons run along every passage, centre to centre
+        var segs = [], r, c, nodes = [];
+        for (r = 0; r < m.rows; r++) for (c = 0; c < m.cols; c++) {
+          var p = m.center(c, r); if (m.area[r][c] < 0) nodes.push(p);
+          if (c < m.cols - 1 && m.edge(c, r, 1) > 0 && !(m.area[r][c] >= 0 && m.area[r][c] === m.area[r][c + 1])) segs.push([p, m.center(c + 1, r)]);
+          if (r < m.rows - 1 && m.edge(c, r, 2) > 0 && !(m.area[r][c] >= 0 && m.area[r][c] === m.area[r + 1][c])) segs.push([p, m.center(c, r + 1)]);
+        }
+        g.lineCap = 'round'; g.lineJoin = 'round';
+        var pass = function (width, style, dash) {
+          g.lineWidth = width; g.strokeStyle = style; g.fillStyle = style; g.setLineDash(dash || []);
+          g.beginPath(); segs.forEach(function (s) { g.moveTo(s[0].x, s[0].z); g.lineTo(s[1].x, s[1].z); }); g.stroke();
+          if (!dash) nodes.forEach(function (n) { g.beginPath(); g.arc(n.x, n.z, width / 2, 0, 7); g.fill(); });
+        };
+        pass(3.1, '#f0b84e'); pass(2.65, '#e8651e'); pass(2.0, '#f59e0b'); pass(0.22, '#fff0b0', [0.5, 0.5]);
+        // arrows at dead ends mark where a gold chip may be hiding
+        m.deadEnds().forEach(function (n) { var p = m.center(n.c, n.r); g.fillStyle = '#fff0b0'; g.beginPath(); g.moveTo(p.x, p.z - 0.8); g.lineTo(p.x + 0.8, p.z); g.lineTo(p.x, p.z + 0.8); g.lineTo(p.x - 0.8, p.z); g.fill(); });
+        // welcome mat at the entrance
+        var e = m.center(m.entry.c, m.entry.r); g.fillStyle = '#3a0509'; g.fillRect(e.x - 2.2, e.z + 0.6, 4.4, 2.4); g.strokeStyle = '#f0b84e'; g.lineWidth = 0.14; g.strokeRect(e.x - 2.2, e.z + 0.6, 4.4, 2.4);
+      });
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - furniture builders. Static geometry goes into a Batch; K is the build context. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E, P = C.Props = {};
+  var RH = 4.6;
+
+  P.loc = function (x, z, rot, lx, lz) {
+    return { x: x + lx * Math.cos(rot) + lz * Math.sin(rot), z: z - lx * Math.sin(rot) + lz * Math.cos(rot) };
+  };
+  // axis-aligned collider covering a rotated local rectangle
+  P.rect = function (K, x, z, rot, lx0, lx1, lz0, lz1) {
+    var cs = [[lx0, lz0], [lx1, lz0], [lx0, lz1], [lx1, lz1]].map(function (p) { return P.loc(x, z, rot, p[0], p[1]); });
+    var xs = cs.map(function (p) { return p.x; }), zs = cs.map(function (p) { return p.z; });
+    K.colliders.push({ x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs), z0: Math.min.apply(null, zs), z1: Math.max.apply(null, zs) });
+  };
+  function cam(x, z, rot, plx, plz, py, llx, llz, ly) {
+    var p = P.loc(x, z, rot, plx, plz), l = P.loc(x, z, rot, llx, llz);
+    return { p: [p.x, py, p.z], l: [l.x, ly, l.z] };
+  }
+  // part placed at a local offset of a rotated prop
+  function part(K, kind, mat, x, z, rot, lx, ly, lz, a, b2, c, d) {
+    var w = P.loc(x, z, rot, lx, lz), B = K.b;
+    if (kind === 'box') B.box(mat, a, b2, c, w.x, ly, w.z, rot);
+    else if (kind === 'cyl') B.cyl(mat, a, b2, c, d || 14, w.x, ly, w.z, false, rot);
+    else if (kind === 'plane') B.plane(mat, a, b2, w.x, ly, w.z, rot);
+  }
+  P.lightCone = lightCone;
+  function lightCone(K, x, z, radius) {
+    K.b.cyl(E.M.cone, 0.35, radius, RH - 0.95, 20, x, 0.95 + (RH - 0.95) / 2, z, true);
+    K.b.plane(E.M.pool, radius * 2.5, radius * 2.5, x, 0.03, z, 0, -Math.PI / 2);
+  }
+
+  /* ---- slot machine ---- */
+  P.THEMES = ['LUCKY 7s', 'GOLD RUSH', 'INFERNO', 'HIGH VOLTAGE', 'RED DRAGON', 'DIAMOND DUST', 'FORTUNE', 'WILD STAR'];
+  P.machine = function (K, x, z, rot, idx) {
+    var M = E.M, B = K.b;
+    part(K, 'box', M.body, x, z, rot, 0, 0.78, 0, 0.9, 1.55, 0.72);
+    part(K, 'box', M.gold, x, z, rot, 0, 1.28, 0.37, 0.76, 0.5, 0.05);
+    part(K, 'plane', M.screens[idx % 6], x, z, rot, 0, 1.28, 0.4, 0.66, 0.41);
+    part(K, 'box', M.bodyDark, x, z, rot, 0, 1.7, 0, 0.92, 0.3, 0.5);
+    part(K, 'plane', M.marq[idx % 3], x, z, rot, 0, 1.7, 0.26, 0.8, 0.18);
+    part(K, 'box', M.gold, x, z, rot, 0, 0.86, 0.42, 0.9, 0.08, 0.34);
+    for (var i = 0; i < 3; i++) part(K, 'box', M.btn[i], x, z, rot, -0.22 + i * 0.22, 0.915, 0.45, 0.12, 0.03, 0.08);
+    part(K, 'box', M.gold, x, z, rot, -0.46, 0.78, 0, 0.04, 1.5, 0.74);
+    part(K, 'box', M.gold, x, z, rot, 0.46, 0.78, 0, 0.04, 1.5, 0.74);
+    part(K, 'box', M.gold, x, z, rot, 0.52, 1.0, 0.1, 0.04, 0.5, 0.04);
+    part(K, 'box', M.btn[0], x, z, rot, 0.52, 1.28, 0.1, 0.1, 0.1, 0.1);
+    part(K, 'box', M.strobe[idx % 4], x, z, rot, 0, 1.92, 0, 0.14, 0.12, 0.14);
+    part(K, 'cyl', M.chair, x, z, rot, 0, 0.5, 1.05, 0.22, 0.22, 0.08, 12);
+    part(K, 'cyl', M.gold, x, z, rot, 0, 0.25, 1.05, 0.03, 0.03, 0.5, 6);
+    P.rect(K, x, z, rot, -0.5, 0.5, -0.4, 0.62);
+    var seat = P.loc(x, z, rot, 0, 1.05), st = P.loc(x, z, rot, 0, 1.6), c = cam(x, z, rot, 0, 1.6, 1.5, 0, 0, 1.25);
+    var m = { kind: 'slot', x: x, z: z, rot: rot, idx: idx, theme: P.THEMES[idx % P.THEMES.length], seat: { x: seat.x, z: seat.z, yaw: rot + Math.PI, pose: 'slot', machine: null }, top: { x: x, z: z } };
+    m.seat.machine = m;
+    m.station = { type: 'slots', label: 'Play ' + m.theme, x: st.x, z: st.z, r: 0.95, cam: c, theme: m.theme };
+    K.machines.push(m); K.stations.push(m.station); K.seats.push(m.seat);
+    return m;
+  };
+
+  /* ---- blackjack table (half moon, dealer on the flat side) ---- */
+  var bjHalf, bjFelt, pkFelt, hdFelt, rlFelt, backMat;
+  function feltBJ() {
+    return E.ctex(1024, 512, function (g) {
+      var s = 512 / 1.5; g.strokeStyle = '#5a7a96'; g.fillStyle = '#3b5a78'; g.lineWidth = 3; g.textAlign = 'center'; g.textBaseline = 'middle';
+      var arc = function (txt, R, a0, a1, size) { g.font = '700 ' + size + 'px Arial'; for (var i = 0; i < txt.length; i++) { var th = a0 + (a1 - a0) * (i / (txt.length - 1)); g.save(); g.translate(512 + R * s * Math.sin(th), R * s * Math.cos(th)); g.rotate(-th); g.fillText(txt[i], 0, 0); g.restore(); } };
+      arc('BLACKJACK PAYS 3 TO 2', 0.66, -0.55, 0.55, 28); arc('INSURANCE PAYS 2 TO 1', 0.9, -0.5, 0.5, 18);
+      for (var i = 0; i < 5; i++) { var th = -0.95 + i * 0.475; g.beginPath(); g.arc(512 + 1.2 * s * Math.sin(th), 1.2 * s * Math.cos(th), 0.16 * s, 0, 7); g.stroke(); }
+    });
+  }
+  P.blackjack = function (K, x, z, rot) {
+    var M = E.M, B = K.b, r = 1.5, seatR = 2.15;
+    if (!bjHalf) { bjHalf = [new THREE.CylinderGeometry(r + 0.12, r + 0.12, 0.1, 40, 1, false, -Math.PI / 2, Math.PI), new THREE.CylinderGeometry(r, r, 0.12, 40, 1, false, -Math.PI / 2, Math.PI)]; bjFelt = new THREE.MeshBasicMaterial({ map: feltBJ(), transparent: true }); K.shared.push(bjHalf[0], bjHalf[1], bjFelt); }
+    B.add(bjHalf[0], M.rim, B.xf(x, 0.86, z, rot)); B.add(bjHalf[1], M.felt, B.xf(x, 0.9, z, rot));
+    part(K, 'box', M.rim, x, z, rot, 0, 0.88, 0, 2 * r + 0.24, 0.12, 0.12);
+    part(K, 'cyl', M.dark, x, z, rot, 0, 0.4, 0.2, 0.3, 0.5, 0.8, 16);
+    var o = P.loc(x, z, rot, 0, r / 2); B.plane(bjFelt, 2 * r, r, o.x, 0.962, o.z, rot, -Math.PI / 2);
+    part(K, 'box', M.gold, x, z, rot, 0, 0.985, 0.22, 1.0, 0.05, 0.26);
+    lightCone(K, P.loc(x, z, rot, 0, 0.9).x, P.loc(x, z, rot, 0, 0.9).z, 2.1);
+    var seats = [];
+    for (var i = 0; i < 5; i++) {
+      var th = -0.95 + i * 0.475, sx = seatR * Math.sin(th), sz = seatR * Math.cos(th);
+      part(K, 'cyl', M.chair, x, z, rot, sx, 0.7, sz, 0.2, 0.2, 0.1, 12); part(K, 'cyl', M.gold, x, z, rot, sx, 0.35, sz, 0.03, 0.03, 0.7, 6);
+      var w = P.loc(x, z, rot, sx, sz);
+      if (i === 2) { var st = P.loc(x, z, rot, 0, seatR + 0.5); K.stations.push({ type: 'blackjack', label: 'Sit at blackjack', x: st.x, z: st.z, r: 1.3, cam: cam(x, z, rot, 0, 3.1, 2.5, 0, 0.4, 0.95) }); }
+      else K.seats.push({ x: w.x, z: w.z, yaw: rot + th + Math.PI, pose: 'card' });
+    }
+    var d = P.loc(x, z, rot, 0, -0.7); K.seats.push({ x: d.x, z: d.z, yaw: rot, pose: 'dealer', always: true });
+    P.rect(K, x, z, rot, -1.7, 1.7, -0.9, 1.55); P.rect(K, x, z, rot, -2.0, 2.0, 1.6, 2.35);
+  };
+
+  /* ---- poker table (oval, eight seats) ---- */
+  P.poker = function (K, x, z, rot, variant) {
+    var hold = variant === 'holdem';
+    var M = E.M, B = K.b, ax = 1.45, az = 0.95;
+    if (!pkFelt) {
+      pkFelt = new THREE.MeshBasicMaterial({ transparent: true, map: E.ctex(1024, 660, function (g, w, h) {
+        g.strokeStyle = '#5a7a96'; g.fillStyle = '#3b5a78'; g.lineWidth = 4; g.beginPath(); g.ellipse(w / 2, h / 2, w * 0.42, h * 0.4, 0, 0, 7); g.stroke();
+        g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 46px Arial'; g.fillText('FIVE CARD DRAW', w / 2, h / 2);
+        g.font = '700 22px Arial'; g.fillText('ANTE  ·  DRAW  ·  BET OR FOLD', w / 2, h / 2 + 44);
+      }) });
+      backMat = new THREE.MeshBasicMaterial({ map: E.ctex(64, 92, function (g) { g.fillStyle = '#8f1018'; g.fillRect(0, 0, 64, 92); g.strokeStyle = '#f2b84b'; g.lineWidth = 5; g.strokeRect(4, 4, 56, 84); E.dia(g, 32, 46, 18, null, '#f2b84b', 3); }) });
+      hdFelt = new THREE.MeshBasicMaterial({ transparent: true, map: E.ctex(1024, 660, function (g, w, h) {
+        g.strokeStyle = '#5a7a96'; g.fillStyle = '#3b5a78'; g.lineWidth = 4; g.beginPath(); g.ellipse(w / 2, h / 2, w * 0.42, h * 0.4, 0, 0, 7); g.stroke();
+        g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 46px Arial'; g.fillText("TEXAS HOLD'EM", w / 2, h / 2 - 70);
+        g.font = '700 22px Arial'; g.fillText('TWO HOLE CARDS  ·  FIVE SHARED', w / 2, h / 2 - 28);
+        for (var q = 0; q < 5; q++) g.strokeRect(w / 2 - 205 + q * 84, h / 2 + 10, 70, 98);
+      }) });
+      K.shared.push(pkFelt, hdFelt, backMat);
+    }
+    var cyl = new THREE.CylinderGeometry(1, 1, 0.1, 48), top = new THREE.CylinderGeometry(1, 1, 0.12, 48);
+    var q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot, 0)), one = new THREE.Vector3(ax + 0.12, 1, az + 0.12), two = new THREE.Vector3(ax, 1, az);
+    B.add(cyl, M.rim, new THREE.Matrix4().compose(new THREE.Vector3(x, 0.86, z), q, one));
+    B.add(top, M.felt, new THREE.Matrix4().compose(new THREE.Vector3(x, 0.9, z), q, two));
+    cyl.dispose(); top.dispose();
+    part(K, 'cyl', M.dark, x, z, rot, 0, 0.4, 0, 0.3, 0.55, 0.8, 16);
+    B.plane(hold ? hdFelt : pkFelt, 2.9, 1.87, x, 0.962, z, rot, -Math.PI / 2);
+    for (var i = 0; i < 5; i++) [1, -1].forEach(function (s) { var w = P.loc(x, z, rot, (i - 2) * 0.17 * s, 0.6 * s); B.plane(backMat, 0.15, 0.21, w.x, 0.966, w.z, rot + (i - 2) * 0.12, -Math.PI / 2); });
+    for (i = 0; i < 4; i++) part(K, 'cyl', [M.btn[1], M.felt, M.gold, M.btn[0]][i], x, z, rot, -0.3 + i * 0.2, 0.98 + i * 0.01, 0.1, 0.06, 0.06, 0.03, 10);
+    lightCone(K, x, z, 2.3);
+    for (i = 0; i < 8; i++) {
+      var a = i / 8 * Math.PI * 2, sx = Math.sin(a) * 1.85, sz = Math.cos(a) * 1.35, w = P.loc(x, z, rot, sx, sz);
+      if (i === 4) { K.seats.push({ x: w.x, z: w.z, yaw: rot, pose: 'dealer', always: true }); continue; }
+      part(K, 'cyl', M.chair, x, z, rot, sx, 0.55, sz, 0.22, 0.22, 0.1, 12); part(K, 'cyl', M.gold, x, z, rot, sx, 0.27, sz, 0.03, 0.03, 0.55, 6);
+      if (i === 0) { var st = P.loc(x, z, rot, 0, 2.15); K.stations.push({ type: hold ? 'holdem' : 'poker', label: hold ? "Sit at Hold'em" : 'Sit at poker', x: st.x, z: st.z, r: 1.3, cam: cam(x, z, rot, 0, 3.0, 2.6, 0, 0.1, 0.95) }); }
+      else K.seats.push({ x: w.x, z: w.z, yaw: rot + Math.atan2(-sx, -sz), pose: 'card' });
+    }
+    P.rect(K, x, z, rot, -2.1, 2.1, -1.6, 1.6);
+  };
+
+  /* ---- roulette table with a spinning wheel ---- */
+  P.roulette = function (K, x, z, rot) {
+    var M = E.M, B = K.b, wx = -2.0, T = THREE;
+    if (!rlFelt) { rlFelt = new T.MeshPhongMaterial({ map: layoutTex(), emissive: 0x8aa2b8, emissiveIntensity: 0.3 }); K.shared.push(rlFelt); }
+    part(K, 'box', M.rim, x, z, rot, 0, 0.85, 0, 2.6, 0.1, 1.3);
+    part(K, 'box', M.dark, x, z, rot, -0.95, 0.4, 0, 0.45, 0.8, 1.0); part(K, 'box', M.dark, x, z, rot, 0.95, 0.4, 0, 0.45, 0.8, 1.0);
+    var o = P.loc(x, z, rot, 0.05, 0); B.plane(rlFelt, 2.45, 0.95, o.x, 0.905, o.z, rot, -Math.PI / 2);
+    part(K, 'cyl', M.dark, x, z, rot, wx, 0.45, 0, 0.72, 0.72, 0.9, 28); part(K, 'cyl', M.wood, x, z, rot, wx, 0.95, 0, 0.7, 0.7, 0.1, 32);
+    var tor = new T.TorusGeometry(0.69, 0.03, 6, 40), w2 = P.loc(x, z, rot, wx, 0); B.add(tor, M.gold, B.xf(w2.x, 1.0, w2.z, rot, Math.PI / 2)); tor.dispose();
+    var ring = new T.RingGeometry(0.43, 0.64, 40); B.add(ring, M.rim, B.xf(w2.x, 1.005, w2.z, rot, -Math.PI / 2)); ring.dispose();
+    lightCone(K, P.loc(x, z, rot, -0.8, 0.3).x, P.loc(x, z, rot, -0.8, 0.3).z, 2.2);
+    // dynamic parts: wheel disc, cone, ball
+    var g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = rot; K.dyn.add(g);
+    var pivot = new T.Group(); pivot.position.set(wx, 1.02, 0); g.add(pivot);
+    var disc = new T.Mesh(new T.CircleGeometry(0.43, 64), new T.MeshPhongMaterial({ map: P.wheelTex(), emissive: 0x222222, shininess: 60 })); disc.rotation.x = -Math.PI / 2; pivot.add(disc);
+    var tip = new T.Mesh(new T.ConeGeometry(0.1, 0.14, 12), M.gold); tip.position.y = 0.07; pivot.add(tip);
+    var ball = new T.Mesh(new T.SphereGeometry(0.026, 10, 8), new T.MeshBasicMaterial({ color: 0xffffff })); g.add(ball);
+    K.disposables.push(disc.geometry, disc.material, tip.geometry, ball.geometry, ball.material);
+    var wheel = { pivot: pivot, ball: ball, cx: wx, theta: Math.random() * 6, omega0: 0.35, spin: null, p: 0, phiLock: Math.random() * 6, num: 0, auto: 4 + Math.random() * 20, world: w2 };
+    K.wheels.push(wheel);
+    var st = P.loc(x, z, rot, -0.7, 1.9);
+    K.stations.push({ type: 'roulette', label: 'Play roulette', x: st.x, z: st.z, r: 1.4, wheel: wheel, cam: cam(x, z, rot, -0.8, 2.9, 2.4, -0.8, 0.1, 0.95) });
+    [-1.2, -0.45, 0.8, 1.2].forEach(function (lx) { var s = P.loc(x, z, rot, lx, 1.15); K.seats.push({ x: s.x, z: s.z, yaw: rot + Math.PI, pose: 'stand' }); });
+    var c1 = P.loc(x, z, rot, 0.3, -0.95); K.seats.push({ x: c1.x, z: c1.z, yaw: rot, pose: 'dealer', always: true });
+    var c2 = P.loc(x, z, rot, wx, -1.1); K.seats.push({ x: c2.x, z: c2.z, yaw: rot, pose: 'dealer', always: true });
+    P.rect(K, x, z, rot, -2.85, 1.4, -0.75, 0.75);
+  };
+
+  var RED = {}; [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36].forEach(function (n) { RED[n] = 1; });
+  C.RED = RED;
+  C.ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+  var PS = Math.PI * 2 / 37; C.PS = PS;
+  P.wheelTex = function () {
+    return E.ctex(512, 512, function (g) {
+      var c = 256, R = 250; g.fillStyle = '#1b0d0a'; g.fillRect(0, 0, 512, 512);
+      for (var i = 0; i < 37; i++) {
+        var n = C.ORDER[i], ph = i * PS; g.beginPath(); g.moveTo(c, c); g.arc(c, c, R, -(ph + PS / 2), -(ph - PS / 2), false); g.closePath();
+        g.fillStyle = n === 0 ? '#1f8a5a' : RED[n] ? '#c8323c' : '#161c26'; g.fill(); g.strokeStyle = '#d9e3ec'; g.lineWidth = 1.5; g.stroke();
+      }
+      g.fillStyle = '#c9d3dc'; g.beginPath(); g.arc(c, c, R * 0.7, 0, 7); g.fill(); g.fillStyle = '#e9b34a'; g.beginPath(); g.arc(c, c, R * 0.3, 0, 7); g.fill();
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = '700 17px Arial';
+      for (i = 0; i < 37; i++) { var p2 = i * PS; g.save(); g.translate(c + R * 0.87 * Math.cos(p2), c - R * 0.87 * Math.sin(p2)); g.rotate(Math.PI / 2 - p2); g.fillText(String(C.ORDER[i]), 0, 0); g.restore(); }
+    });
+  };
+  function layoutTex() {
+    return E.ctex(1500, 560, function (g) {
+      g.fillStyle = '#e9f2fb'; g.fillRect(0, 0, 1500, 560); g.textAlign = 'center'; g.textBaseline = 'middle';
+      var cell = function (c, r, w, h, txt, fill, col) { var x = 50 + c * 100, y = 30 + r * 100; g.fillStyle = fill; g.fillRect(x + 2, y + 2, w * 100 - 4, h * 100 - 4); g.strokeStyle = '#8aa2b8'; g.lineWidth = 3; g.strokeRect(x + 2, y + 2, w * 100 - 4, h * 100 - 4); g.fillStyle = col; g.font = '700 ' + (txt.length > 3 ? 38 : 52) + 'px Arial'; g.fillText(txt, x + w * 50, y + h * 50); };
+      cell(0, 0, 1, 3, '0', '#1f8a5a', '#fff');
+      for (var r = 0; r < 3; r++) for (var c = 0; c < 12; c++) { var n = (c + 1) * 3 - r; cell(c + 1, r, 1, 1, String(n), RED[n] ? '#c8323c' : '#1d2430', '#fff'); }
+      for (r = 0; r < 3; r++) cell(13, r, 1, 1, '2:1', '#e9f2fb', '#3b5a78');
+      ['1st 12', '2nd 12', '3rd 12'].forEach(function (t, i) { cell(1 + i * 4, 3, 4, 1, t, '#e9f2fb', '#3b5a78'); });
+      [['1-18', '#e9f2fb', '#3b5a78'], ['EVEN', '#e9f2fb', '#3b5a78'], ['', '#c8323c', '#fff'], ['', '#1d2430', '#fff'], ['ODD', '#e9f2fb', '#3b5a78'], ['19-36', '#e9f2fb', '#3b5a78']].forEach(function (a, i) { cell(1 + i * 2, 4, 2, 1, a[0], a[1], a[2]); });
+    });
+  }
+
+  /* ---- atrium cocktail table ---- */
+  P.cocktail = function (K, x, z) {
+    var M = E.M;
+    K.b.cyl(M.gold, 0.5, 0.5, 0.06, 20, x, 1.08, z); K.b.cyl(M.rim, 0.06, 0.06, 1.05, 8, x, 0.52, z); K.b.cyl(M.gold, 0.32, 0.4, 0.06, 16, x, 0.03, z);
+    K.b.cyl(M.felt, 0.09, 0.07, 0.16, 8, x + 0.15, 1.19, z + 0.05);
+    K.colliders.push({ x0: x - 0.5, x1: x + 0.5, z0: z - 0.5, z1: z + 0.5 });
+    [[0.95, 0], [-0.95, 0]].forEach(function (o, i) { K.seats.push({ x: x + o[0], z: z + o[1], yaw: i ? -Math.PI / 2 : Math.PI / 2, pose: 'stand' }); });
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - the crowd: seated players, dealers, standing bettors and wandering guests.
+   Every person is drawn with instanced meshes (7 draw calls total no matter how many people). */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E, T;
+  var SHIRTS = ['#1b1b22', '#2a3550', '#b3262d', '#d9a441', '#e8e8ee', '#3a7d6b', '#6b3fa0', '#c9622b', '#2e4a7a', '#f0c75e', '#8b1d3a', '#1f6f78', '#e86a92'];
+  var SKINS = ['#f1c9a5', '#e0ac85', '#c68642', '#8d5524', '#5c3a21', '#ffdbb4'];
+  var PANTS = ['#15151a', '#262a3a', '#3a2a1d', '#1d2b3a'];
+  var HAIR = ['#1b1210', '#3a2415', '#6b4423', '#b08a4a', '#c9c2b8', '#7a2b1b'];
+  var mw, ml, mb, sv, pos;
+
+  function Crowd(parent, defs, maze, rng) {
+    T = THREE; mw = new T.Matrix4(); ml = new T.Matrix4(); mb = new T.Matrix4(); sv = new T.Vector3(); pos = new T.Vector3();
+    var n = defs.length, mat = E.M.npc, self = this;
+    this.maze = maze; this.rng = rng; this.people = []; this.group = parent;
+    var mk = function (geo, count) { var m = new T.InstancedMesh(geo, mat, count); m.frustumCulled = false; m.instanceMatrix.setUsage(T.DynamicDrawUsage); parent.add(m); return m; };
+    var arm = new T.BoxGeometry(0.1, 0.52, 0.1); arm.translate(0, -0.26, 0);
+    var leg = new T.BoxGeometry(0.15, 0.8, 0.15); leg.translate(0, -0.4, 0);
+    var hair = new T.SphereGeometry(0.135, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    this.geos = [arm, leg, hair];
+    this.torso = mk(new T.BoxGeometry(0.4, 0.58, 0.24), n); this.head = mk(new T.SphereGeometry(0.12, 8, 6), n);
+    this.hair = mk(hair, n); this.arms = mk(arm, n * 2); this.legs = mk(leg, n * 2);
+    this.geos.push(this.torso.geometry, this.head.geometry);
+    var col = new T.Color();
+    var paint = function (mesh, i, hex) { mesh.setColorAt(i, col.set(hex)); };
+    defs.forEach(function (d, i) {
+      var shirt = d.pose === 'dealer' ? '#17121e' : C.pick(SHIRTS, rng), skin = C.pick(SKINS, rng), pants = d.pose === 'dealer' ? '#0d0d12' : C.pick(PANTS, rng);
+      paint(self.torso, i, shirt); paint(self.head, i, skin); paint(self.hair, i, C.pick(HAIR, rng));
+      paint(self.arms, i * 2, shirt); paint(self.arms, i * 2 + 1, shirt); paint(self.legs, i * 2, pants); paint(self.legs, i * 2 + 1, pants);
+      var p = { i: i, x: d.x, z: d.z, yaw: d.yaw || 0, pose: d.pose, seat: d.pose === 'slot' || d.pose === 'card', phase: rng() * 20, cel: 0, next: 6 + rng() * 40,
+        reach: 0, machine: d.machine || null, speed: 1.0 + rng() * 0.7, off: (rng() - 0.5) * 0.8, wait: 0, path: [], tx: 0, tz: 0, walking: false, scale: 0.94 + rng() * 0.12 };
+      if (d.walker) { p.walker = true; p.pose = 'walk'; p.cell = maze.cellAt(d.x, d.z); p.wait = rng() * 4; }
+      self.people.push(p);
+    });
+    [this.torso, this.head, this.hair, this.arms, this.legs].forEach(function (m) { if (m.instanceColor) m.instanceColor.needsUpdate = true; });
+  }
+  var P = Crowd.prototype;
+
+  function part(mesh, idx, lx, ly, lz, rx, sx, sy, sz) {
+    ml.makeRotationX(rx); if (sx !== 1 || sy !== 1 || sz !== 1) ml.scale(sv.set(sx, sy, sz));
+    ml.setPosition(lx, ly, lz); mw.multiplyMatrices(mb, ml); mesh.setMatrixAt(idx, mw);
+  }
+  P.draw = function (p, t) {
+    var seated = p.seat, y0 = seated ? -0.27 : 0, s = p.scale;
+    var raiseL = 0, raiseR = 0, lean = 0, bob = 0, sway = 0, legA = 0, legB = 0, ph = t * 1.0 + p.phase;
+    if (p.pose === 'slot') {
+      var tap = Math.max(0, Math.sin(ph * 5.5)) * 0.18;
+      raiseR = 0.95 + tap; raiseL = 0.55; lean = 0.12; sway = Math.sin(ph * 0.7) * 0.06;
+      if (p.cel > 0) { raiseL = raiseR = 2.7 + Math.sin(t * 14 + p.phase) * 0.3; lean = -0.15; bob = Math.abs(Math.sin(t * 9 + p.phase)) * 0.08; }
+    } else if (p.pose === 'card') {
+      raiseL = 0.8; raiseR = 0.8 + (p.reach > 0 ? Math.sin(p.reach * Math.PI) * 0.5 : 0); lean = 0.1; sway = Math.sin(ph * 0.5) * 0.08;
+    } else if (p.pose === 'stand') {
+      raiseR = p.reach > 0 ? 0.6 + Math.sin(p.reach * Math.PI) * 0.9 : 0.1; raiseL = 0.1; sway = Math.sin(ph * 0.6) * 0.05;
+    } else if (p.pose === 'dealer') {
+      var k = Math.sin(ph * 1.8); raiseR = 0.9 + (k > 0.3 ? k * 0.7 : 0); raiseL = 0.75; sway = Math.sin(ph * 0.4) * 0.1;
+    } else if (p.pose === 'walk') {
+      var w = p.walking ? Math.sin(p.phase * 2.6) : 0; legA = w * 0.65; legB = -w * 0.65; raiseL = -w * 0.5; raiseR = w * 0.5; bob = p.walking ? Math.abs(w) * 0.03 : 0;
+      sway = p.walking ? 0 : Math.sin(ph * 0.5) * 0.3;
+    }
+    pos.set(p.x, bob, p.z); mb.makeRotationY(p.yaw + sway); mb.setPosition(pos);
+    if (s !== 1) { mb.scale(sv.set(s, s, s)); }
+    var i = p.i, ty = 1.11 + y0;
+    part(this.torso, i, 0, ty, 0, lean, 1, 1, 1);
+    part(this.head, i, 0, 1.55 + y0 + 0.02, lean * 0.5 + 0.03 + (seated ? 0.04 : 0), 0, 1, 1, 1);
+    part(this.hair, i, 0, 1.58 + y0, -0.01 + lean * 0.5, 0, 1, 1, 1);
+    part(this.arms, i * 2, -0.26, 1.36 + y0, 0.0, -raiseL, 1, 1, 1);
+    part(this.arms, i * 2 + 1, 0.26, 1.36 + y0, 0.0, -raiseR, 1, 1, 1);
+    if (seated) { part(this.legs, i * 2, -0.1, 0.55, 0, -Math.PI / 2, 1, 0.5, 1); part(this.legs, i * 2 + 1, 0.1, 0.55, 0, -Math.PI / 2, 1, 0.5, 1); }
+    else { part(this.legs, i * 2, -0.1, 0.82, 0, legA, 1, 1, 1); part(this.legs, i * 2 + 1, 0.1, 0.82, 0, legB, 1, 1, 1); }
+  };
+
+  function turn(a, b, k) { var d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * Math.min(1, k); }
+
+  P.pickDest = function (p) {
+    var m = this.maze, rng = this.rng, c, r, a = m.areas[Math.floor(rng() * m.areas.length)];
+    if (rng() < 0.55) { c = a.c0 + Math.floor(rng() * 3); r = a.r0 + Math.floor(rng() * 3); }
+    else { c = Math.floor(rng() * m.cols); r = Math.floor(rng() * m.rows); }
+    if (m.isBlocked(c, r)) { p.wait = 0.5; return; }
+    p.path = m.path(p.cell, { c: c, r: r }); if (!p.path.length) p.wait = 1 + rng() * 3;
+  };
+  P.update = function (dt, t, player, hooks) {
+    var m = this.maze, rng = this.rng, cs = m.cell;
+    for (var k = 0; k < this.people.length; k++) {
+      var p = this.people[k];
+      if (p.walker) {
+        var dxp = player.x - p.x, dzp = player.z - p.z, near = dxp * dxp + dzp * dzp < 1.1;
+        if (p.wait > 0) { p.wait -= dt; p.walking = false; if (p.wait <= 0 && !p.path.length) this.pickDest(p); }
+        else if (!p.path.length) { p.wait = 1 + rng() * 5; p.walking = false; }
+        else {
+          var nx = p.path[0], cc = m.center(nx.c, nx.r), hx = cc.x, hz = cc.z;
+          var ddx = hx - p.x, ddz = hz - p.z, len = Math.hypot(ddx, ddz);
+          // sidestep so guests do not all walk the exact centre line
+          var ox = -ddz / (len || 1) * p.off * Math.min(1, len / 2), oz = ddx / (len || 1) * p.off * Math.min(1, len / 2);
+          if (len < 0.35) { p.cell = { c: nx.c, r: nx.r }; p.path.shift(); }
+          else if (!near) {
+            var sp = p.speed * dt; p.x += (ddx / len) * sp + ox * dt * 0.3; p.z += (ddz / len) * sp + oz * dt * 0.3; p.phase += dt * p.speed * 2.2; p.walking = true;
+            p.yaw = turn(p.yaw, Math.atan2(ddx, ddz), dt * 7);
+          } else p.walking = false;
+        }
+        if (!p.walking) p.phase += 0; 
+      } else {
+        if (p.cel > 0) p.cel -= dt;
+        if (p.reach > 0) p.reach -= dt * 0.8;
+        p.next -= dt;
+        if (p.next <= 0) {
+          if (p.pose === 'slot') { var d2 = (p.x - player.x) * (p.x - player.x) + (p.z - player.z) * (p.z - player.z); p.next = 15 + rng() * 45; if (rng() < 0.7) { p.cel = 3.2; if (hooks && hooks.onWin) hooks.onWin(p, Math.sqrt(d2)); } }
+          else { p.next = 4 + rng() * 12; p.reach = 1; }
+        }
+      }
+      this.draw(p, t);
+    }
+    this.torso.instanceMatrix.needsUpdate = true; this.head.instanceMatrix.needsUpdate = true; this.hair.instanceMatrix.needsUpdate = true;
+    this.arms.instanceMatrix.needsUpdate = true; this.legs.instanceMatrix.needsUpdate = true;
+  };
+  P.dispose = function () {
+    var g = this.group;
+    [this.torso, this.head, this.hair, this.arms, this.legs].forEach(function (m) { g.remove(m); m.dispose(); });
+    this.geos.forEach(function (x) { x.dispose(); });
+  };
+  C.Crowd = Crowd;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - turns a Maze into a 3D level: walls, floors, rooms, props, collectibles, crowd. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E, P = C.Props, MZ = C.Maze, L = C.Level = {};
+  var RH = 4.6, TH = 0.4;
+
+  function drawSign(g, text, w, h, size) {
+    g.fillStyle = '#1a0608'; g.fillRect(0, 0, w, h); g.strokeStyle = '#f2b84b'; g.lineWidth = 6; g.strokeRect(10, 10, w - 20, h - 20);
+    g.lineWidth = 2; g.strokeRect(24, 24, w - 48, h - 48); g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = size + 'px Limelight, Georgia, serif'; g.shadowColor = '#ff8a1f'; g.shadowBlur = 24; g.fillStyle = '#ffd88a'; g.fillText(text, w / 2, h / 2 + 4);
+  }
+
+  L.build = function (seed) {
+    var m = MZ.generate(seed), M = E.M, T = THREE, CELL = m.cell, rng = C.mulberry32(seed * 7 + 13);
+    var group = new T.Group(); E.scene.add(group);
+    var K = { b: new E.Batch(), dyn: group, colliders: [], stations: [], seats: [], machines: [], wheels: [], shared: [], disposables: [], signs: [], mi: 0 };
+    var B = K.b, xl = function (c) { return (c - m.cols / 2) * CELL; }, zl = function (r) { return (r - m.rows / 2) * CELL; };
+    var level = { maze: m, group: group, K: K, seed: seed, colliders: K.colliders, stations: K.stations, machines: K.machines, wheels: K.wheels, chips: [], jackRing: null, flashT: 0, t: 0 };
+
+    /* floors and ceiling (uv scaled so every carpet tile is 3 units wide) */
+    var ft = C.Carpet.make(m), fmat = new T.MeshLambertMaterial({ map: ft, emissiveMap: ft, emissive: 0xffffff, emissiveIntensity: 0.55 });
+    var floor = new T.Mesh(new T.PlaneGeometry(m.w, m.d), fmat); floor.rotation.x = -Math.PI / 2; group.add(floor);
+    K.disposables.push(ft, fmat, floor.geometry);
+    var cg = new T.PlaneGeometry(m.w, m.d); B.add(cg, M.ceil, B.xf(0, RH, 0, 0, Math.PI / 2), m.cols, m.rows); cg.dispose();
+
+    /* outer walls only; the floor is open */
+    var wall = function (x, z, ry, val) {
+      var horiz = ry === 0, hl = CELL;
+      var add = function (len, off, y, hgt, mat, thick) {
+        var px = horiz ? x + off : x, pz = horiz ? z : z + off;
+        B.box(mat, len, hgt, thick || TH, px, y, pz, ry, mat === M.wall ? len / 2.4 : 1, 1);
+      };
+      var coll = function (len, off) {
+        var px = horiz ? x + off : x, pz = horiz ? z : z + off;
+        K.colliders.push(horiz ? { x0: px - len / 2, x1: px + len / 2, z0: pz - TH / 2, z1: pz + TH / 2 } : { x0: px - TH / 2, x1: px + TH / 2, z0: pz - len / 2, z1: pz + len / 2 });
+      };
+      if (val === 0) {
+        add(hl, 0, RH / 2, RH, M.wall); coll(hl, 0);
+        add(hl, 0, RH - 0.22, 0.07, M.neon, TH + 0.06);
+        [-1, 1].forEach(function (s) { // sconces on both faces
+          var sx = horiz ? x : x + s * (TH / 2 + 0.05), sz = horiz ? z + s * (TH / 2 + 0.05) : z;
+          B.box(M.sconce, horiz ? 0.24 : 0.1, 0.42, horiz ? 0.1 : 0.24, sx, 2.9, sz, 0);
+        });
+      } else if (val === 1) {
+        var side = (hl - MZ.DOOR) / 2, o = MZ.DOOR / 2 + side / 2;
+        add(side, -o, RH / 2, RH, M.wall); add(side, o, RH / 2, RH, M.wall); coll(side, -o); coll(side, o);
+        add(MZ.DOOR, 0, 2.9 + (RH - 2.9) / 2, RH - 2.9, M.wall);
+        add(hl, 0, RH - 0.22, 0.07, M.neon, TH + 0.06);
+        add(MZ.DOOR + 0.3, 0, 2.93, 0.14, M.gold, 0.55);
+        add(MZ.DOOR + 0.2, 0, 3.12, 0.05, M.coolNeon, 0.58);
+        add(0.14, -MZ.DOOR / 2, 1.45, 2.9, M.gold, 0.55); add(0.14, MZ.DOOR / 2, 1.45, 2.9, M.gold, 0.55);
+      }
+    };
+    var r, c, d;
+    for (r = 0; r <= m.rows; r++) for (c = 0; c < m.cols; c++) { var hv = m.h[r][c]; if (hv < 2 && (r === 0 || r === m.rows)) wall(m.center(c, 0).x, zl(r), 0, hv); }
+    for (r = 0; r < m.rows; r++) for (c = 0; c <= m.cols; c++) { var vv = m.v[r][c]; if (vv < 2 && (c === 0 || c === m.cols)) wall(xl(c), m.center(0, r).z, Math.PI / 2, vv); }
+    // gold corner posts wherever walls meet
+    for (r = 0; r <= m.rows; r++) for (c = 0; c <= m.cols; c++) {
+      var hit = (c > 0 && m.h[r][c - 1] < 2) || (c < m.cols && m.h[r][c] < 2) || (r > 0 && m.v[r - 1][c] < 2) || (r < m.rows && m.v[r][c] < 2);
+      if (!hit || !(r === 0 || r === m.rows || c === 0 || c === m.cols)) continue;
+      var px = xl(c), pz = zl(r);
+      B.box(M.bodyDark, 0.56, RH, 0.56, px, RH / 2, pz, 0); B.box(M.gold, 0.64, 0.14, 0.64, px, 0.3, pz, 0); B.box(M.gold, 0.64, 0.14, 0.64, px, RH - 0.45, pz, 0);
+      K.colliders.push({ x0: px - 0.28, x1: px + 0.28, z0: pz - 0.28, z1: pz + 0.28 });
+    }
+    // entrance doors on the south wall (closed)
+    var ec = m.center(m.entry.c, m.entry.r), ez = zl(m.rows) - 0.3;
+    B.box(M.gold, 3.6, 3.3, 0.1, ec.x, 1.65, ez, 0); B.box(M.wood, 1.5, 3.0, 0.08, ec.x - 0.78, 1.55, ez - 0.07, 0); B.box(M.wood, 1.5, 3.0, 0.08, ec.x + 0.78, 1.55, ez - 0.07, 0);
+    B.box(M.gold, 0.08, 0.5, 0.08, ec.x - 0.12, 1.4, ez - 0.14, 0); B.box(M.gold, 0.08, 0.5, 0.08, ec.x + 0.12, 1.4, ez - 0.14, 0);
+
+    /* machines along a wall of one cell (3 machines, inward facing) */
+    var wallMachines = function (cc, rr, dd, p) {
+      var ctr = m.center(cc, rr), fx = -MZ.DX[dd], fz = -MZ.DZ[dd], rot = Math.atan2(fx, fz), back = CELL / 2 - (m.inside(cc + MZ.DX[dd], rr + MZ.DZ[dd]) ? 0 : TH / 2) - 0.4;
+      [-1.1, 0, 1.1].forEach(function (lat) {
+        var x = ctr.x - fx * back + Math.abs(fz) * lat, z = ctr.z - fz * back + Math.abs(fx) * lat;
+        var mc = P.machine(K, x, z, rot, K.mi++); mc.seat.p = p;
+      });
+    };
+    /* rooms */
+    var theme = { slots: 'SLOTS', blackjack: 'BLACKJACK', poker: 'POKER', holdem: 'TEXAS HOLD\'EM', roulette: 'ROULETTE', hub: 'THE ATRIUM' };
+    m.areas.forEach(function (a) {
+      var sy = [[-3, -3], [3, -3], [-3, 3], [3, 3]];
+      sy.forEach(function (o, k) {
+        var bx = a.x + o[0], bz = a.z + o[1], alongX = (o[0] * o[1]) > 0;
+        var rot = alongX ? -o[0] / 3 * Math.PI / 2 : (o[1] > 0 ? Math.PI : 0);
+        if (a.type === 'slots') {
+          [-1.575, -0.525, 0.525, 1.575].forEach(function (lz) {
+            P.machine(K, bx - 0.4, bz + lz, -Math.PI / 2, K.mi++).seat.p = 0.62; P.machine(K, bx + 0.4, bz + lz, Math.PI / 2, K.mi++).seat.p = 0.62;
+          });
+        } else if (a.type === 'blackjack') P.blackjack(K, bx, bz, rot);
+        else if (a.type === 'poker') P.poker(K, bx, bz, rot);
+        else if (a.type === 'holdem') P.poker(K, bx, bz, rot, 'holdem');
+        else if (a.type === 'roulette') { var ro = P.loc(bx, bz, rot, 0.725, 0); P.roulette(K, ro.x, ro.z, rot); }
+        else if (a.type === 'hub') P.cocktail(K, bx, bz);
+      });
+      if (a.type === 'slots') for (var rr = a.r0; rr <= a.r1; rr++) for (var cc = a.c0; cc <= a.c1; cc++) for (var dd = 0; dd < 4; dd++) {
+        var nc = cc + MZ.DX[dd], nr = rr + MZ.DZ[dd];
+        if (m.edge(cc, rr, dd) === 0 && (!m.inside(nc, nr) || m.area[nr][nc] !== a.id)) wallMachines(cc, rr, dd, 0.55);
+      }
+      // hanging signs, readable from every side
+      var sg = function (ry) {
+        var w = 1024, h = 210, size = theme[a.type].length > 9 ? 78 : 92, cv = E.ctex(w, h, function (g) { drawSign(g, theme[a.type], w, h, size); });
+        K.signs.push({ tex: cv, text: theme[a.type], w: w, h: h, size: size });
+        var mesh = new T.Mesh(new T.PlaneGeometry(4.4, 0.9), new T.MeshBasicMaterial({ map: cv })); mesh.position.set(a.x, 3.4, a.z); mesh.rotation.y = ry; group.add(mesh);
+        K.disposables.push(mesh.geometry, mesh.material, cv);
+      };
+      if (a.type !== 'hub') { [0, Math.PI, Math.PI / 2, -Math.PI / 2].forEach(function (ry) { sg(ry); }); B.box(M.gold, 0.06, RH - 3.85, 0.06, a.x, (3.85 + RH) / 2, a.z, 0); }
+      if (a.type === 'hub') {
+        B.cyl(M.body, 0.8, 0.8, RH, 24, a.x, RH / 2, a.z); B.cyl(M.gold, 1.25, 1.35, 0.4, 24, a.x, 0.2, a.z); B.cyl(M.gold, 1.25, 1.0, 0.3, 24, a.x, RH - 0.15, a.z);
+        var tg = new T.TorusGeometry(0.86, 0.04, 6, 32); B.add(tg, M.gold, B.xf(a.x, 3.72, a.z, 0, Math.PI / 2)); B.add(tg, M.gold, B.xf(a.x, 2.88, a.z, 0, Math.PI / 2)); tg.dispose();
+        P.lightCone(K, a.x, a.z, 3.0);
+        K.colliders.push({ x0: a.x - 1.35, x1: a.x + 1.35, z0: a.z - 1.35, z1: a.z + 1.35 });
+        var cv = document.createElement('canvas'); cv.width = 512; cv.height = 128; var tex = new T.CanvasTexture(cv); tex.encoding = T.sRGBEncoding; tex.wrapS = T.RepeatWrapping; tex.repeat.set(2, 1);
+        var ring = new T.Mesh(new T.CylinderGeometry(0.84, 0.84, 0.8, 32, 1, true), new T.MeshBasicMaterial({ map: tex, side: T.DoubleSide })); ring.position.set(a.x, 3.3, a.z); group.add(ring);
+        level.jackRing = ring; level.jackCanvas = cv; level.jackTex = tex; K.disposables.push(ring.geometry, ring.material, tex);
+      }
+    });
+
+    /* ceiling chasers over every cell, bulb strings along the walls and bulbs ringing each room sign */
+    for (r = 0; r < m.rows; r++) for (c = 0; c < m.cols; c++) {
+      var cc3 = m.center(c, r);
+      [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6], [0, 0]].forEach(function (o, k) {
+        B.box(M.chase[(c * 3 + r * 5 + k * 2) % 8], k === 4 ? 0.7 : 0.45, 0.05, k === 4 ? 0.7 : 0.45, cc3.x + o[0], RH - 0.04, cc3.z + o[1], 0);
+      });
+    }
+    for (c = 0; c < m.cols * 4; c++) { // bulb strings along the north and south walls, just under the neon
+      var bx2 = -m.w / 2 + 0.75 + c * (m.w / (m.cols * 4)), mt = M.chase[(c * 3) % 8], mt2 = M.chase[(c * 3 + 4) % 8];
+      B.box(mt, 0.16, 0.16, 0.16, bx2, RH - 0.55, -m.d / 2 + 0.3, 0); B.box(mt2, 0.16, 0.16, 0.16, bx2, RH - 0.55, m.d / 2 - 0.3, 0);
+    }
+    for (r = 0; r < m.rows * 4; r++) {
+      var bz2 = -m.d / 2 + 0.75 + r * (m.d / (m.rows * 4)), mw = M.chase[(r * 3 + 2) % 8], mw2 = M.chase[(r * 3 + 6) % 8];
+      B.box(mw, 0.16, 0.16, 0.16, -m.w / 2 + 0.3, RH - 0.55, bz2, 0); B.box(mw2, 0.16, 0.16, 0.16, m.w / 2 - 0.3, RH - 0.55, bz2, 0);
+    }
+    m.areas.forEach(function (a) {
+      if (a.type === 'hub') return;
+      for (var k = 0; k < 12; k++) { var an = k / 12 * Math.PI * 2; B.box(M.chase[(k * 3) % 8], 0.2, 0.2, 0.2, a.x + Math.cos(an) * 2.6, 3.4 + Math.sin(an) * 0.0, a.z + Math.sin(an) * 2.6, 0); }
+    });
+
+    /* open floor: banks of machines stand back to back along the old maze lines */
+    for (r = 0; r < m.rows; r++) for (c = 0; c < m.cols; c++) {
+      if (m.area[r][c] >= 0) continue;
+      for (d = 0; d < 4; d++) {
+        if (m.edge(c, r, d) !== 0 || (r === m.entry.r && c === m.entry.c && d === 2)) continue;
+        if (rng() < 0.7) wallMachines(c, r, d, 0.4);
+      }
+    }
+
+    /* gold chips hidden in dead ends */
+    var spots = m.deadEnds(); var extra = 0;
+    while (spots.length < 9 && extra++ < 60) { var cc2 = Math.floor(rng() * m.cols), rr2 = Math.floor(rng() * m.rows); if (m.area[rr2][cc2] < 0 && !spots.some(function (s) { return s.c === cc2 && s.r === rr2; })) spots.push({ c: cc2, r: rr2 }); }
+    spots.slice(0, 16).forEach(function (s) {
+      var ct = m.center(s.c, s.r), mesh = new T.Mesh(new T.CylinderGeometry(0.3, 0.3, 0.07, 20), M.chipGold), halo = new T.Sprite(M.halo.clone());
+      mesh.rotation.x = Math.PI / 2; var g = new T.Group(); g.add(mesh); halo.scale.set(1.5, 1.5, 1); halo.material.opacity = 0.8; g.add(halo); g.position.set(ct.x, 1.0, ct.z); group.add(g);
+      K.disposables.push(mesh.geometry, halo.material);
+      level.chips.push({ x: ct.x, z: ct.z, obj: g, value: 50 * (1 + Math.floor(rng() * 5)), got: false, c: s.c, r: s.r });
+    });
+
+    /* people */
+    var defs = [];
+    K.seats.forEach(function (s) {
+      var p = s.always ? 1 : (s.p !== undefined ? s.p : (s.pose === 'stand' ? 0.8 : 0.7));
+      if (rng() > p) return;
+      defs.push({ x: s.x, z: s.z, yaw: s.yaw, pose: s.pose, machine: s.machine || null });
+      if (s.pose !== 'dealer') K.colliders.push({ x0: s.x - 0.3, x1: s.x + 0.3, z0: s.z - 0.3, z1: s.z + 0.3 });
+      if (s.machine) s.machine.station.taken = true;
+    });
+    var walkers = 46;
+    for (var i = 0; i < walkers; i++) {
+      var wc = Math.floor(rng() * m.cols), wr = Math.floor(rng() * m.rows);
+      if (m.isBlocked(wc, wr)) { wc = m.entry.c; wr = m.entry.r; }
+      var ct2 = m.center(wc, wr);
+      defs.push({ x: ct2.x, z: ct2.z, yaw: rng() * 6.28, pose: 'walk', walker: true });
+    }
+    B.build(group, K.disposables);
+    level.crowd = new C.Crowd(group, defs, m, rng);
+    level.crowdSize = defs.length;
+    level.start = { x: ec.x, z: zl(m.rows) - 1.6 };
+    return level;
+  };
+
+  L.dispose = function (level) {
+    if (!level) return;
+    E.scene.remove(level.group);
+    level.crowd.dispose();
+    level.K.disposables.forEach(function (o) { if (o && o.dispose) o.dispose(); });
+  };
+  L.redrawSigns = function (level) {
+    level.K.signs.forEach(function (s) { drawSign(s.tex.image.getContext('2d'), s.text, s.w, s.h, s.size); s.tex.needsUpdate = true; });
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - per-frame life: strobing lights, flashes, the roulette wheels, the crowd, pickups. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E, L = C.Level, tmpA, tmpB;
+
+  L.spinWheel = function (w, num, D, done) {
+    w.spin = { t: 0, D: D, th0: w.theta, wMax: 5.2, phi: C.ORDER.indexOf(num) * C.PS, N: 5 + Math.random() * 2, done: done }; w.num = num;
+  };
+  L.updateWheel = function (w, dt) {
+    var s = w.spin, rr = 0.36, y = 1.05;
+    if (s) {
+      s.t += dt; var u = Math.min(1, s.t / s.D), k = 1 - u;
+      w.theta = s.th0 + w.omega0 * s.t + (s.wMax - w.omega0) * s.D / 3 * (1 - k * k * k);
+      w.p = s.phi + w.theta + k * k * k * s.N * Math.PI * 2;
+      if (u < 0.72) rr = 0.55; else {
+        var q = (u - 0.72) / 0.28; rr = 0.55 - 0.19 * q * q * (3 - 2 * q);
+        if (u > 0.8) y += Math.abs(Math.sin((u - 0.8) * 60)) * 0.025 * (1 - u) * 5;
+      }
+      if (u >= 1) { w.spin = null; w.phiLock = s.phi; if (s.done) s.done(); }
+    } else { w.theta += w.omega0 * dt; w.p = w.phiLock + w.theta; }
+    w.pivot.rotation.y = w.theta;
+    w.ball.position.set(w.cx + rr * Math.cos(w.p), y, -rr * Math.sin(w.p));
+  };
+
+  /* cool strobe from a lamp or a person's lucky moment; three lights are reused */
+  L.flashAt = function (x, y, z, big) {
+    var best = null, i, f;
+    for (i = 0; i < E.flash.length; i++) { f = E.flash[i]; if (f.t >= f.dur) { best = f; break; } if (!best || f.t / f.dur > best.t / best.dur) best = f; }
+    best.light.position.set(x, y, z); best.light.color.setHex(big ? 0xffffff : (Math.random() < 0.5 ? 0x8fd0ff : 0xd6ecff));
+    best.t = 0; best.dur = big ? 1.3 : 0.45 + Math.random() * 0.3; best.peak = big ? 4.4 : 2.7 + Math.random() * 0.8;
+  };
+  L.celebrate = function (level, secs) { level.celebrate = Math.max(level.celebrate || 0, secs); };
+
+  function drawJack(level) {
+    var g = level.jackCanvas.getContext('2d');
+    g.fillStyle = '#16050a'; g.fillRect(0, 0, 512, 128); g.strokeStyle = '#f2b84b'; g.lineWidth = 4; g.strokeRect(4, 4, 504, 120);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ff7a3a'; g.font = '34px Limelight, Georgia, serif'; g.fillText('JACKPOT', 256, 34);
+    g.fillStyle = '#ffd88a'; g.font = '56px Limelight, Georgia, serif'; g.fillText(C.fmt(C.Jackpot.value), 256, 86);
+    level.jackTex.needsUpdate = true;
+  }
+
+  L.update = function (level, dt, t, player, hooks) {
+    var M = E.M, i, k, T = THREE;
+    tmpA = tmpA || new T.Color(); tmpB = tmpB || new T.Color(0xe6f6ff);
+    level.t = t;
+    var cel = level.celebrate > 0; if (cel) level.celebrate -= dt;
+    // warm marquees chase; jackpot makes everything strobe
+    var ph = Math.floor(t * 5) % 3;
+    for (i = 0; i < 3; i++) M.marq[i].color.setHex(cel ? (Math.floor(t * 14) % 2 ? 0xfff0b0 : 0x6a3a10) : (i === ph ? 0xffe08a : 0x6a3a10));
+    for (i = 0; i < 4; i++) M.strobe[i].color.setHex(cel || Math.sin(t * (9 + i * 4.3) + i * 1.7) > 0.55 ? 0xcfeaff : 0x15233a);
+    // ceiling chasers: warm and cool bulbs run across the whole floor in waves, and all blink together on a jackpot
+    var CH = [0xffb347, 0xcfeaff, 0xff5a2a, 0x8fd0ff, 0xffd24a, 0xffffff, 0xff7a1f, 0x7fc4ff];
+    for (i = 0; i < 8; i++) {
+      var wave = ((t * 6 - i * 1.0) % 8 + 8) % 8, tw = Math.sin(t * (5 + i * 1.3) + i * 2.1) > 0.82;
+      M.chase[i].color.setHex(cel ? (Math.floor(t * 12) % 2 ? CH[i] : 0x20150f) : (wave < 1.6 || tw ? CH[i] : (i % 2 ? 0x1a2a40 : 0x3a1c0c)));
+    }
+    M.coolNeon.color.setHex(0x4a86c0).lerp(tmpB, 0.5 + 0.5 * Math.sin(t * 2.2));
+    // machine screens flicker through their frames
+    level.scr = level.scr || [];
+    for (i = 0; i < E.screenTex.length; i++) {
+      if (!(t > (level.scr[i] || 0))) continue;
+      level.scr[i] = t + 0.12 + Math.random() * 0.9;
+      E.screenTex[i].offset.x = (cel ? 6 + Math.floor(Math.random() * 2) : Math.floor(Math.random() * 6)) / 8;
+    }
+    // ambient cool flashes near the player
+    level.flashNext = (level.flashNext || 0) - dt;
+    if (level.flashNext <= 0) {
+      level.flashNext = cel ? 0.08 : 0.08 + Math.random() * 0.3;
+      var ms = level.machines;
+      for (k = 0; k < 20; k++) {
+        var mc = ms[Math.floor(Math.random() * ms.length)], d = Math.hypot(mc.x - player.x, mc.z - player.z);
+        if (d > 3 && d < 24) { L.flashAt(mc.x, 1.9, mc.z, false); break; }
+      }
+    }
+    for (i = 0; i < E.flash.length; i++) {
+      var f = E.flash[i];
+      if (f.t < f.dur) { f.t += dt; var u = f.t / f.dur, on = u < 0.15 || Math.floor(f.t * 14) % 2 === 0; f.light.intensity = f.peak * (1 - u) * (on ? 1 : 0.15); }
+      else f.light.intensity = 0;
+    }
+    // roulette wheels spin on their own unless someone is playing them
+    for (i = 0; i < level.wheels.length; i++) {
+      var w = level.wheels[i];
+      if (!w.owned && !w.spin) { w.auto -= dt; if (w.auto <= 0) { L.spinWheel(w, Math.floor(Math.random() * 37), 7.5, null); w.auto = 18 + Math.random() * 25; } }
+      L.updateWheel(w, dt);
+    }
+    // jackpot pillar
+    if (level.jackRing) { level.jackRing.rotation.y += dt * 0.25; level.jackDraw = (level.jackDraw || 0) - dt; if (level.jackDraw <= 0) { level.jackDraw = 0.25; C.Jackpot.tick(0.25); drawJack(level); } }
+    // gold chips to collect
+    for (i = 0; i < level.chips.length; i++) {
+      var ch = level.chips[i]; if (ch.got) continue;
+      ch.obj.rotation.y += dt * 2.6; ch.obj.position.y = 1.0 + Math.sin(t * 2 + i) * 0.08;
+      if (Math.hypot(ch.x - player.x, ch.z - player.z) < 0.9) { ch.got = true; level.group.remove(ch.obj); if (hooks.chip) hooks.chip(ch); }
+    }
+    level.crowd.update(dt, t, player, {
+      onWin: function (p, dist) { L.flashAt(p.x, 1.9, p.z, false); if (hooks.npcWin) hooks.npcWin(p, dist); }
+    });
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - slot machine maths (pure, no DOM). 3 reels x 3 rows, 5 paylines, wild, scatter free spins. */
+(function (G) {
+  var C = G.Casino = G.Casino || {};
+  var SYMS = [
+    { id: 'seven', g: '7', c: '#d6291a', pay: 100, w: 2 },
+    { id: 'bar', g: 'BAR', c: '#b8791a', pay: 38, w: 4 },
+    { id: 'bell', g: '🔔', c: '#e0a010', pay: 22, w: 6 },
+    { id: 'diamond', g: '♦︎', c: '#c4202b', pay: 13, w: 8 },
+    { id: 'cherry', g: '🍒', c: '#d0173a', pay: 7, w: 11 },
+    { id: 'club', g: '♣︎', c: '#2a3a4a', pay: 5, w: 13 },
+    { id: 'wild', g: 'W', c: '#7a3cff', pay: 0, w: 3 },
+    { id: 'scatter', g: '✪', c: '#e8b020', pay: 0, w: 2 }
+  ];
+  var SEVEN = 0, CHERRY = 4, WILD = 6, SCAT = 7;
+  var LINES = [[[0, 0], [0, 1], [0, 2]], [[1, 0], [1, 1], [1, 2]], [[2, 0], [2, 1], [2, 2]], [[0, 0], [1, 1], [2, 2]], [[2, 0], [1, 1], [0, 2]]];
+  var SCAT_PAY = { 3: 2, 4: 5, 5: 15, 6: 50 }; // times the total bet
+  var total = SYMS.reduce(function (a, s) { return a + s.w; }, 0);
+
+  function pickSym(rng) { var r = rng() * total; for (var i = 0; i < SYMS.length; i++) { r -= SYMS[i].w; if (r < 0) return i; } return 5; }
+  function evalLine(a, b, c) {
+    var s = [a, b, c];
+    if (s.indexOf(SCAT) >= 0) return null;
+    var target = -1; for (var i = 0; i < 3; i++) if (s[i] !== WILD) { target = s[i]; break; }
+    if (target < 0) target = SEVEN;
+    var all = s.every(function (x) { return x === target || x === WILD; });
+    if (all) return { sym: target, mult: SYMS[target].pay, n: 3, pure: s.every(function (x) { return x === SEVEN; }) };
+    if ((a === CHERRY || a === WILD) && (b === CHERRY || b === WILD) && (a === CHERRY || b === CHERRY)) return { sym: CHERRY, mult: 1, n: 2, pure: false };
+    return null;
+  }
+  // one spin. returns the grid, winning lines and totals in units of the total bet
+  function spin(rng, free) {
+    var grid = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], r, c;
+    for (r = 0; r < 3; r++) for (c = 0; c < 3; c++) grid[r][c] = pickSym(rng);
+    var lines = [], sum = 0, jackpot = false;
+    LINES.forEach(function (ln, idx) {
+      var w = evalLine(grid[ln[0][0]][ln[0][1]], grid[ln[1][0]][ln[1][1]], grid[ln[2][0]][ln[2][1]]);
+      if (w) { w.line = idx; w.cells = ln; lines.push(w); sum += w.mult; if (w.pure) jackpot = true; }
+    });
+    var scat = 0; for (r = 0; r < 3; r++) for (c = 0; c < 3; c++) if (grid[r][c] === SCAT) scat++;
+    var mult = free ? 2 : 1;
+    return { grid: grid, lines: lines, lineUnits: sum / 5 * mult, scatter: scat, scatterUnits: SCAT_PAY[Math.min(scat, 6)] || 0, spinsWon: scat >= 3 ? (free ? 4 : 8) : 0, jackpot: jackpot, free: !!free };
+  }
+  C.SlotMath = { SYMS: SYMS, LINES: LINES, spin: spin, pickSym: pickSym, evalLine: evalLine };
+  if (typeof module !== 'undefined') module.exports = C.SlotMath;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - five card draw hand ranking and bot decisions (pure, no DOM). */
+(function (G) {
+  var C = G.Casino = G.Casino || {};
+  var HN = ['High Card', 'One Pair', 'Two Pair', 'Three of a Kind', 'Straight', 'Flush', 'Full House', 'Four of a Kind', 'Straight Flush'];
+  // returns [category, ...tiebreakers]; ranks are 0 (two) to 12 (ace)
+  function eval5(h) {
+    var rs = h.map(function (c) { return c.r; }).sort(function (a, b) { return b - a; });
+    var flush = h.every(function (c) { return c.s === h[0].s; }), cnt = {};
+    rs.forEach(function (r) { cnt[r] = (cnt[r] || 0) + 1; });
+    var gr = Object.keys(cnt).map(function (r) { return [cnt[r], +r]; }).sort(function (a, b) { return b[0] - a[0] || b[1] - a[1]; });
+    var st = false, high = rs[0];
+    if (gr.length === 5) { if (rs[0] - rs[4] === 4) st = true; else if (rs[0] === 12 && rs[1] === 3 && rs[4] === 0) { st = true; high = 3; } }
+    var cat;
+    if (st && flush) cat = 8; else if (gr[0][0] === 4) cat = 7; else if (gr[0][0] === 3 && gr[1][0] === 2) cat = 6; else if (flush) cat = 5; else if (st) cat = 4;
+    else if (gr[0][0] === 3) cat = 3; else if (gr[0][0] === 2 && gr[1][0] === 2) cat = 2; else if (gr[0][0] === 2) cat = 1; else cat = 0;
+    return [cat].concat(st ? [high] : gr.map(function (g) { return g[1]; }));
+  }
+  function cmp(a, b) { for (var i = 0; i < Math.max(a.length, b.length); i++) { var d = (a[i] || 0) - (b[i] || 0); if (d) return d > 0 ? 1 : -1; } return 0; }
+  function name(e) { return e[0] === 8 && e[1] === 12 ? 'Royal Flush' : HN[e[0]]; }
+  // which cards a computer player keeps
+  function keep(h) {
+    var e = eval5(h), cnt = {}; h.forEach(function (c) { cnt[c.r] = (cnt[c.r] || 0) + 1; });
+    if (e[0] >= 4) return h.map(function () { return true; });
+    if (e[0] === 0) { var s = h.slice().sort(function (a, b) { return b.r - a.r; }); return h.map(function (c) { return c === s[0] || c === s[1]; }); }
+    return h.map(function (c) { return cnt[c.r] >= 2; });
+  }
+  // best five-card hand out of five to seven cards
+  function best(cards) {
+    var n = cards.length, top = null, a, b, c, d, e;
+    if (n === 5) return eval5(cards);
+    for (a = 0; a < n - 4; a++) for (b = a + 1; b < n - 3; b++) for (c = b + 1; c < n - 2; c++) for (d = c + 1; d < n - 1; d++) for (e = d + 1; e < n; e++) {
+      var v = eval5([cards[a], cards[b], cards[c], cards[d], cards[e]]); if (!top || cmp(v, top) > 0) top = v;
+    }
+    return top;
+  }
+  // rough 0..1 strength of a hold'em hand for computer players
+  function strength(hole, board) {
+    var hi = Math.max(hole[0].r, hole[1].r), lo = Math.min(hole[0].r, hole[1].r), s;
+    if (!board.length) {
+      if (hi === lo) return 0.55 + hi / 12 * 0.4;
+      s = 0.12 + (hi + lo) / 24 * 0.36 + (hole[0].s === hole[1].s ? 0.06 : 0) + (hi - lo <= 2 ? 0.05 : 0);
+      return Math.min(0.9, s);
+    }
+    var e = best(hole.concat(board)), cat = e[0];
+    if (cat === 0) return 0.12 + hi / 12 * 0.12;
+    if (cat === 1) { var pr = e[1]; return (pr === hole[0].r || pr === hole[1].r) ? 0.42 + pr / 12 * 0.16 : 0.26; }
+    if (cat === 2) return 0.7;
+    if (cat === 3) return 0.8;
+    return 0.92;
+  }
+  C.PokerMath = { best: best, strength: strength, eval5: eval5, cmp: cmp, name: name, keep: keep, HN: HN };
+  if (typeof module !== 'undefined') module.exports = C.PokerMath;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - slots: 3x3 reels, 5 paylines, wilds, scatter free spins (x2), progressive jackpot, red/black gamble. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$, S = C.SlotMath, SYMS = S.SYMS, fmt = C.fmt;
+  var H = 58; // symbol height in px (keep in sync with css .sym)
+  C.Games = C.Games || {};
+  var SL = C.Games.slots = {
+    bet: 10, grid: [[0, 1, 2], [3, 4, 5], [1, 2, 3]], spinning: false, busy: false, free: 0, freeWon: 0, msg: '', win: false, hit: [], gamble: null, theme: '', timers: [],
+    open: function (st) {
+      $('#gtitle').textContent = st.theme || 'Slots'; this.theme = st.theme; this.spinning = false; this.busy = false; this.hit = [];
+      this.msg = this.free ? 'Free spins are still waiting. Every win pays double.' : 'Three in a row on any of five lines wins. Wilds fill in, three coins give free spins.'; this.win = false; this.render(false);
+    },
+    close: function () { this.timers.forEach(clearTimeout); this.timers = []; if (this.gamble) this.collect(true); },
+    sym: function (i, cls) { var s = SYMS[i]; return '<div class="sym ' + (cls || '') + (s.g.length > 2 && s.id === 'bar' ? ' bar' : '') + '" style="color:' + s.c + '">' + s.g + '</div>'; },
+    render: function () {
+      var g = this.grid, self = this, h = '';
+      h += '<div class="slotbar"><span>Jackpot <b id="jpv">' + fmt(C.Jackpot.value) + '</b></span><span>' + (this.free ? 'FREE SPINS <b>' + this.free + '</b> · wins x2' : 'Bet ' + fmt(this.bet)) + '</span></div>';
+      h += '<div class="reels3">';
+      for (var c = 0; c < 3; c++) {
+        h += '<div class="reel3"><div class="strip" id="st' + c + '">';
+        for (var r = 0; r < 3; r++) h += this.sym(g[r][c], this.hit.indexOf(r * 3 + c) >= 0 ? 'hit' : '');
+        h += '</div></div>';
+      }
+      h += '</div><div class="msg' + (this.win ? ' win' : '') + '">' + this.msg + '</div>';
+      if (this.gamble) {
+        h += '<div class="row c"><div class="gcard ' + (this.gamble.last || 'q') + '">' + (this.gamble.last ? (this.gamble.last === 'r' ? '♥' : '♠') : '?') + '</div><b>Pot ' + fmt(this.gamble.pot) + '</b></div>'
+          + '<div class="row c"><button class="btn red" data-a="gr">Red</button><button class="btn blk" data-a="gb">Black</button><button class="btn pri" data-a="collect">Collect</button></div>';
+      } else {
+        h += '<div class="row c">' + C.ui.chips([5, 10, 25, 50, 100], this.bet, 'bet') + '<button class="btn pri" data-a="spin"' + (this.spinning ? ' disabled' : '') + '>' + (this.free ? 'Free spin' : 'Spin ' + fmt(this.bet)) + '</button>'
+          + (this.lastWin > 0 && this.lastWin <= 1000 && !this.spinning && !this.free ? '<button class="btn" data-a="gamble">Gamble ' + fmt(this.lastWin) + '</button>' : '') + '</div>';
+      }
+      h += '<div class="pay">' + SYMS.slice(0, 6).map(function (s) { return '<span style="color:' + s.c + '">' + s.g + '</span> ×' + s.pay; }).join(' · ') + ' · W wild · ✪ ✪ ✪ free spins<br>Max bet with three real 7s on a line wins the jackpot.</div>';
+      $('#gbody').innerHTML = h;
+    },
+    onKey: function (k) { if ((k === ' ' || k === 'enter') && !this.spinning && !this.gamble) this.onClick('spin'); },
+    atRisk: function () { return this.busy || this.free > 0 || !!this.gamble; },
+    onClick: function (a, el) {
+      if (this.spinning) return;
+      if (a === 'bet') { this.bet = +el.dataset.v; C.Sfx.chip(); this.render(); }
+      else if (a === 'spin') this.spin();
+      else if (a === 'gamble') this.startGamble();
+      else if (a === 'gr' || a === 'gb') this.pick(a === 'gr' ? 'r' : 'b');
+      else if (a === 'collect') this.collect(false);
+    },
+    spin: function () {
+      var self = this, free = this.free > 0;
+      if (!free) {
+        if (C.bank.balance < this.bet) { this.msg = 'Not enough chips. Lower the bet.'; this.win = false; this.render(); return; }
+        C.bank.add(-this.bet); C.Jackpot.feed(this.bet);
+      } else this.free--;
+      this.spinning = true; this.busy = true; this.win = false; this.hit = []; this.lastWin = 0; this.msg = free ? 'Free spin...' : 'Good luck...';
+      var res = S.spin(Math.random, free), old = this.grid, fast = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, stops = fast ? [200, 300, 400] : [900, 1300, 1700];
+      this.render();
+      C.Sfx.reels(stops.map(function (x) { return x / 1000; }));
+      for (var c = 0; c < 3; c++) {
+        var strip = $('#st' + c), html = '', n = 16 + c * 5, r;
+        for (r = 0; r < 3; r++) html += this.sym(old[r][c]);
+        for (r = 0; r < n; r++) html += this.sym(S.pickSym(Math.random));
+        for (r = 0; r < 3; r++) html += this.sym(res.grid[r][c]);
+        strip.innerHTML = html; strip.style.transition = 'none'; strip.style.transform = 'translateY(0)'; strip.getBoundingClientRect();
+        strip.style.transition = 'transform ' + stops[c] + 'ms cubic-bezier(.15,.7,.25,1)'; strip.style.transform = 'translateY(-' + ((n + 3) * H) + 'px)';
+      }
+      this.timers.push(setTimeout(function () { self.settle(res, free); }, stops[2] + 120));
+    },
+    settle: function (res, free) {
+      this.grid = res.grid; this.spinning = false; this.busy = false;
+      var bet = this.bet, total = (res.lineUnits + res.scatterUnits) * bet, jack = 0, parts = [];
+      res.lines.forEach(function (l) { l.cells.forEach(function (p) { SL.hit.push(p[0] * 3 + p[1]); }); });
+      if (res.scatter >= 3) { res.grid.forEach(function (row, r) { row.forEach(function (s, c) { if (s === 7) SL.hit.push(r * 3 + c); }); }); }
+      if (res.lines.length) parts.push(res.lines.length + ' line' + (res.lines.length > 1 ? 's' : ''));
+      if (res.scatterUnits) parts.push('coins x' + res.scatterUnits);
+      if (res.jackpot && bet === 100) { jack = C.Jackpot.take(); parts.push('JACKPOT'); }
+      if (res.spinsWon) { this.free += res.spinsWon; parts.push(res.spinsWon + ' free spins'); }
+      total = Math.round(total) + jack;
+      if (total > 0) {
+        C.bank.add(total); this.win = true; this.lastWin = total; this.msg = (jack ? 'JACKPOT! ' : total >= bet * 10 ? 'BIG WIN ' : 'Win ') + fmt(total) + ' (' + parts.join(', ') + ')';
+        C.Sfx.win(jack || total >= bet * 25 ? 2 : 1); C.toast('+' + fmt(total));
+        if (jack || total >= bet * 25) C.fx.celebrate(jack ? 6 : 3);
+        if (jack) C.fx.jackpot();
+      } else { this.msg = this.free ? 'No win. ' + this.free + ' free spins left.' : 'No win. Spin again.'; C.Sfx.lose(); }
+      if (res.spinsWon && !jack) C.toast(res.spinsWon + ' FREE SPINS');
+      this.render();
+      if (this.free > 0 && !this.gamble) { var self = this; this.timers.push(setTimeout(function () { if (self.free > 0 && C.panelOpen()) self.spin(); }, 1400)); }
+    },
+    startGamble: function () { C.bank.add(-this.lastWin); this.gamble = { pot: this.lastWin, n: 0, last: null }; this.msg = 'Pick the colour of the next card. A right call doubles the pot.'; this.win = false; this.busy = false; this.render(); },
+    pick: function (side) {
+      var g = this.gamble, card = Math.random() < 0.5 ? 'r' : 'b'; g.last = card; C.Sfx.flip();
+      if (card === side) { g.pot *= 2; g.n++; this.msg = 'Correct! Pot is ' + fmt(g.pot) + '.'; this.win = true; if (g.n >= 4) return this.collect(false); }
+      else { this.msg = 'Wrong colour. The pot is gone.'; this.win = false; g.pot = 0; C.Sfx.lose(); this.render(); var self = this; setTimeout(function () { self.collect(false); }, 900); return; }
+      this.render();
+    },
+    collect: function (silent) {
+      var g = this.gamble; if (!g) return; this.gamble = null; this.busy = false;
+      if (g.pot > 0) { C.bank.add(g.pot); if (!silent) { this.msg = 'Collected ' + fmt(g.pot) + '.'; this.win = true; C.Sfx.win(1); } this.lastWin = 0; }
+      else { this.msg = 'Better luck next spin.'; this.win = false; this.lastWin = 0; }
+      if (!silent) this.render();
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - blackjack: 6-deck shoe, split, double, insurance, Perfect Pairs side bet, optional Hi-Lo count. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$, fmt = C.fmt, U = C.ui;
+  C.Games = C.Games || {};
+  function val(cs) { var t = 0, a = 0; cs.forEach(function (c) { if (c.r === 12) { t += 11; a++; } else t += c.r >= 9 ? 10 : c.r + 2; }); while (t > 21 && a > 0) { t -= 10; a--; } return t; }
+  function pts(c) { return c.r === 12 || c.r >= 8 ? 10 : c.r + 2; }
+  function hilo(c) { return c.r <= 4 ? 1 : c.r <= 7 ? 0 : -1; }
+  C.BJMath = { val: val };
+
+  var BJ = C.Games.blackjack = {
+    shoe: [], base: 0, bet: 0, pp: 0, last: { bet: 25, pp: 0 }, hands: [], ai: 0, dealer: [], phase: 'bet', hide: true, msg: '', win: false, busy: false, timers: [], count: false, session: 0, ins: 0, ppMsg: '',
+    open: function () {
+      $('#gtitle').textContent = 'Blackjack'; this.reset(); this.bet = 0; this.pp = 0; this.msg = 'Place your bet. Perfect Pairs is optional.'; this.render();
+    },
+    close: function () { this.timers.forEach(clearTimeout); this.timers = []; if (this.phase !== 'bet' && this.phase !== 'done') { this.hide = false; this.settle(true); } },
+    reset: function () { this.phase = 'bet'; this.hands = []; this.dealer = []; this.hide = true; this.win = false; this.busy = false; this.ins = 0; this.ppMsg = ''; this.counted = false; if (this.shoe.length < 60) { this.shoe = U.shoe(6); this.base = 0; } },
+    later: function (ms, fn) { this.timers.push(setTimeout(fn, ms)); },
+    draw: function (to) { if (this.shoe.length < 12) { this.shoe = U.shoe(6); this.base = 0; C.toast('The dealer shuffles a new shoe'); } var c = this.shoe.pop(); c.fresh = true; to.push(c); C.Sfx.card(); return c; },
+    runCount: function () {
+      if (this.counted) return this.base;
+      var n = this.base, self = this, add = function (cs, skip) { cs.forEach(function (c, i) { if (!(skip && i === 1)) n += hilo(c); }); };
+      this.hands.forEach(function (h) { add(h.cards); }); add(this.dealer, this.hide); return n;
+    },
+    cardsH: function (cs, hideSecond) { return cs.map(function (c, i) { var f = c.fresh; c.fresh = false; return U.card(c, hideSecond && i === 1, { fresh: f }); }).join(''); },
+    render: function () {
+      var self = this, h = '', dtot = this.dealer.length ? (this.hide ? val([this.dealer[0]]) : val(this.dealer)) : '';
+      h += '<div class="bjtop"><span>Shoe ' + this.shoe.length + ' cards</span><span class="sess ' + (this.session >= 0 ? 'up' : 'dn') + '">Session ' + (this.session >= 0 ? '+' : '-') + fmt(Math.abs(this.session)) + '</span><button class="mini" data-a="count">' + (this.count ? 'Count ' + (this.runCount() > 0 ? '+' : '') + this.runCount() : 'Show count') + '</button></div>';
+      h += '<div class="hand"><h4>Dealer<b>' + dtot + '</b></h4><div class="cards">' + this.cardsH(this.dealer, this.hide) + '</div></div>';
+      h += '<div class="hands">';
+      this.hands.forEach(function (hd, i) {
+        var v = val(hd.cards);
+        h += '<div class="hand' + (self.phase === 'play' && i === self.ai ? ' act' : '') + '"><h4>' + (self.hands.length > 1 ? 'Hand ' + (i + 1) : 'You') + '<b>' + v + '</b><em>' + fmt(hd.bet) + (hd.dbl ? ' doubled' : '') + '</em></h4><div class="cards">' + self.cardsH(hd.cards, false) + '</div></div>';
+      });
+      h += '</div><div class="msg' + (this.win ? ' win' : '') + '">' + this.msg + (this.ppMsg ? ' ' + this.ppMsg : '') + '</div><div class="row c">';
+      if (this.phase === 'bet') {
+        h += U.chips([5, 25, 100, 500], 0, 'chip', C.bank.balance - this.bet - this.pp) + '<b>Bet ' + fmt(this.bet) + '</b><button class="btn" data-a="clear">Clear</button>'
+          + '<button class="btn small' + (this.pp ? ' on' : '') + '" data-a="pp">Pairs ' + fmt(this.pp) + '</button><button class="btn pri" data-a="deal"' + (this.bet <= 0 ? ' disabled' : '') + '>Deal</button>';
+      } else if (this.phase === 'insurance') {
+        h += '<button class="btn pri" data-a="ins">Insurance ' + fmt(Math.floor(this.hands[0].bet / 2)) + '</button><button class="btn" data-a="noins">No thanks</button>';
+      } else if (this.phase === 'play') {
+        var hd = this.hands[this.ai], two = hd.cards.length === 2;
+        h += '<button class="btn pri" data-a="hit">Hit</button><button class="btn ice" data-a="stand">Stand</button><button class="btn" data-a="double"' + (!two || C.bank.balance < hd.bet ? ' disabled' : '') + '>Double</button>'
+          + '<button class="btn" data-a="split"' + (!(two && this.hands.length === 1 && pts(hd.cards[0]) === pts(hd.cards[1]) && C.bank.balance >= hd.bet) ? ' disabled' : '') + '>Split</button>';
+      } else if (this.phase === 'dealer') h += '<b>Dealer plays...</b>';
+      else h += '<button class="btn pri" data-a="same"' + (C.bank.balance < this.last.bet + this.last.pp ? ' disabled' : '') + '>Deal again ' + fmt(this.last.bet + this.last.pp) + '</button><button class="btn" data-a="change">Change bet</button>';
+      $('#gbody').innerHTML = h + '</div>';
+    },
+    onKey: function (k) { if (this.phase === 'play') { if (k === 'h') this.onClick('hit'); else if (k === 's') this.onClick('stand'); } },
+    atRisk: function () { return this.busy || (this.phase !== 'bet' && this.phase !== 'done'); },
+    onClick: function (a, el) {
+      var p = this.phase;
+      if (a === 'count') { this.count = !this.count; this.render(); }
+      else if (p === 'bet') {
+        if (a === 'chip') { this.bet += +el.dataset.v; C.Sfx.chip(); }
+        else if (a === 'clear') { this.bet = 0; this.pp = 0; }
+        else if (a === 'pp') { var opts = [0, 5, 25, 100], i = (opts.indexOf(this.pp) + 1) % opts.length; this.pp = opts[i]; if (this.bet + this.pp > C.bank.balance) this.pp = 0; C.Sfx.chip(); }
+        else if (a === 'deal' && this.bet > 0 && this.bet + this.pp <= C.bank.balance) return this.deal();
+        this.render();
+      }
+      else if (a === 'same') { this.reset(); this.bet = this.last.bet; this.pp = this.last.pp; if (this.bet + this.pp <= C.bank.balance) this.deal(); else this.render(); }
+      else if (a === 'change') { this.open(); }
+      else if (p === 'insurance') { if (a === 'ins') { this.ins = Math.floor(this.hands[0].bet / 2); C.bank.add(-this.ins); C.Sfx.chip(); } if (a === 'ins' || a === 'noins') this.peek(); }
+      else if (p === 'play') {
+        var hd = this.hands[this.ai];
+        if (a === 'hit') { this.draw(hd.cards); var v = val(hd.cards); if (v > 21) this.next(); else if (v === 21) this.next(); else this.render(); }
+        else if (a === 'stand') this.next();
+        else if (a === 'double' && hd.cards.length === 2 && C.bank.balance >= hd.bet) { C.bank.add(-hd.bet); hd.bet *= 2; hd.dbl = true; C.Sfx.chip(); this.draw(hd.cards); this.render(); this.later(500, function () { BJ.next(); }); this.busy = true; }
+        else if (a === 'split') this.split();
+      }
+    },
+    deal: function () {
+      this.reset(); C.bank.add(-(this.bet + this.pp)); this.last = { bet: this.bet, pp: this.pp };
+      var hd = { cards: [], bet: this.bet }, self = this; this.hands = [hd]; this.phase = 'dealing'; this.busy = true; this.msg = 'Dealing...'; this.render();
+      this.later(250, function () { self.draw(hd.cards); self.render(); });
+      this.later(550, function () { self.draw(self.dealer); self.render(); });
+      this.later(850, function () { self.draw(hd.cards); self.render(); });
+      this.later(1150, function () { self.draw(self.dealer); self.render(); self.afterDeal(); });
+    },
+    afterDeal: function () {
+      var hd = this.hands[0], a = hd.cards[0], b = hd.cards[1];
+      if (this.pp > 0) { // Perfect Pairs pays on the first two cards
+        var m = 0, nm = '';
+        if (a.r === b.r) { if (a.s === b.s) { m = 25; nm = 'Perfect pair'; } else if ((a.s === 1 || a.s === 2) === (b.s === 1 || b.s === 2)) { m = 12; nm = 'Coloured pair'; } else { m = 6; nm = 'Mixed pair'; } }
+        if (m) { C.bank.add(this.pp * (m + 1)); this.ppMsg = nm + ' pays ' + fmt(this.pp * m) + '!'; C.Sfx.win(1); } else this.ppMsg = 'Pairs bet lost.';
+      }
+      if (this.dealer[0].r === 12) { this.phase = 'insurance'; this.msg = 'Dealer shows an ace. Insurance pays 2 to 1.'; this.busy = false; this.render(); }
+      else this.peek();
+    },
+    peek: function () {
+      var d = val(this.dealer), hd = this.hands[0], pbj = val(hd.cards) === 21;
+      if (d === 21 || pbj) { this.hide = false; this.settle(false); return; }
+      if (this.ins) { this.ins = 0; this.ppMsg += ' Insurance lost.'; }
+      this.phase = 'play'; this.ai = 0; this.busy = true; this.msg = 'Hit, stand, double or split.'; this.render();
+    },
+    split: function () {
+      var hd = this.hands[0], c2 = hd.cards.pop(); C.bank.add(-hd.bet); C.Sfx.chip();
+      var h2 = { cards: [c2], bet: hd.bet }; this.hands = [hd, h2]; this.ai = 0; this.draw(hd.cards); this.draw(h2.cards); this.msg = 'Playing hand 1 of 2.'; this.render();
+    },
+    next: function () {
+      if (this.ai < this.hands.length - 1) { this.ai++; this.msg = 'Playing hand ' + (this.ai + 1) + ' of ' + this.hands.length + '.'; this.render(); var hd = this.hands[this.ai]; if (val(hd.cards) === 21) { var s = this; this.later(500, function () { s.next(); }); } return; }
+      var live = this.hands.some(function (h) { return val(h.cards) <= 21; });
+      this.phase = 'dealer'; this.hide = false; this.render(); C.Sfx.flip(); this.step(live);
+    },
+    step: function (live) {
+      var self = this;
+      if (live && val(this.dealer) < 17) this.later(700, function () { self.draw(self.dealer); self.render(); self.step(live); });
+      else this.later(500, function () { self.settle(false); });
+    },
+    settle: function (forced) {
+      var d = val(this.dealer), dbj = this.dealer.length === 2 && d === 21, self = this, net = 0, txt = [], hands = this.hands;
+      this.hide = false;
+      if (this.ins) { if (dbj) { C.bank.add(this.ins * 3); net += this.ins * 2; txt.push('Insurance paid'); } else net -= this.ins; }
+      hands.forEach(function (h) {
+        var v = val(h.cards), nat = hands.length === 1 && h.cards.length === 2 && v === 21, mult = 0;
+        if (v > 21) mult = 0; else if (nat && !dbj) mult = 2.5; else if (dbj && !nat) mult = 0; else if (nat && dbj) mult = 1; else if (d > 21 || v > d) mult = 2; else if (v === d) mult = 1;
+        if (forced) mult = 1; // leaving mid-hand returns the stakes
+        C.bank.add(h.bet * mult); net += h.bet * mult - h.bet;
+        txt.push(forced ? 'Bets returned' : v > 21 ? 'Bust' : nat && !dbj ? 'Blackjack 3 to 2' : mult === 2 ? 'Win' : mult === 1 ? 'Push' : 'Dealer wins');
+      });
+      this.session += net; this.phase = 'done'; this.busy = false;
+      if (!forced) {
+        this.win = net > 0; this.msg = txt.join(' · ') + (net ? ' (' + (net > 0 ? '+' : '-') + fmt(Math.abs(net)) + ')' : '');
+        if (net > 0) { C.Sfx.win(net >= this.last.bet * 1.4 && hands.length === 1 && hands[0].cards.length === 2 && val(hands[0].cards) === 21 ? 2 : 1); C.toast('+' + fmt(net)); } else if (net < 0) C.Sfx.lose();
+        if (net >= 400) C.fx.celebrate(2.5);
+      }
+      this.hide = false; this.base = this.runCount(); this.counted = true; if (!forced) this.render();
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - five card draw against two table bots: ante, draw, then check/bet/call/fold. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$, fmt = C.fmt, U = C.ui, PM = C.PokerMath;
+  C.Games = C.Games || {};
+  var NAMES = ['Marcus', 'Dee', 'Priya', 'Tomas', 'Lucia', 'Hank', 'Mei', 'Otis', 'Rosa', 'Jules'];
+
+  var PK = C.Games.poker = {
+    deck: [], bet: 0, last: 25, p: [], bots: [], hold: [], phase: 'bet', pot: 0, put: 0, msg: '', win: false, busy: false, show: false, bettor: -1, timers: [],
+    open: function () { $('#gtitle').textContent = 'Five Card Draw'; this.reset(); this.bet = 0; this.msg = 'Choose an ante. You and both players at the table each put it in.'; this.render(); },
+    close: function () { this.timers.forEach(clearTimeout); this.timers = []; if (this.phase !== 'bet' && this.phase !== 'done') { C.bank.add(this.put); this.put = 0; } },
+    reset: function () { this.phase = 'bet'; this.p = []; this.bots = []; this.show = false; this.win = false; this.busy = false; this.pot = 0; this.put = 0; this.bettor = -1; },
+    later: function (ms, fn) { this.timers.push(setTimeout(fn, ms)); },
+    render: function () {
+      var self = this, ph = this.phase, h = '<div class="bots">';
+      this.bots.forEach(function (b) {
+        h += '<div class="hand bot' + (b.fold ? ' folded' : '') + '"><h4>' + b.name + '<b>' + (self.show && !b.fold ? PM.name(PM.eval5(b.cards)) : '') + '</b><em>' + b.status + '</em></h4><div class="cards sm">'
+          + b.cards.map(function (c) { return U.card(c, !self.show || b.fold, {}); }).join('') + '</div></div>';
+      });
+      h += '</div>';
+      if (this.p.length) h += '<div class="hand"><h4>You' + ((ph === 'act' || ph === 'respond' || ph === 'done') ? '<b>' + PM.name(PM.eval5(this.p)) + '</b>' : '') + '<em>Pot ' + fmt(this.pot) + '</em></h4><div class="cards">'
+        + this.p.map(function (c, i) { return ph === 'draw' ? U.card(c, false, { act: 'hold', i: i, held: self.hold[i] }) : U.card(c, false, {}); }).join('') + '</div></div>';
+      h += '<div class="msg' + (this.win ? ' win' : '') + '">' + this.msg + '</div><div class="row c">';
+      var A = this.bet;
+      if (ph === 'bet') h += U.chips([5, 25, 100, 500], 0, 'chip', C.bank.balance - A) + '<b>Ante ' + fmt(A) + '</b><button class="btn" data-a="clear">Clear</button><button class="btn pri" data-a="deal"' + (A <= 0 ? ' disabled' : '') + '>Deal</button>';
+      else if (ph === 'draw') h += '<button class="btn pri" data-a="draw">Draw ' + (5 - this.hold.filter(Boolean).length) + '</button>';
+      else if (ph === 'act') h += '<button class="btn ice" data-a="check">Check</button><button class="btn pri" data-a="bet"' + (C.bank.balance < 2 * A ? ' disabled' : '') + '>Bet ' + fmt(2 * A) + '</button><button class="btn" data-a="fold">Fold</button>';
+      else if (ph === 'respond') h += '<button class="btn pri" data-a="call"' + (C.bank.balance < 2 * A ? ' disabled' : '') + '>Call ' + fmt(2 * A) + '</button><button class="btn" data-a="fold">Fold</button>';
+      else if (ph === 'done') h += '<button class="btn pri" data-a="same"' + (C.bank.balance < this.last ? ' disabled' : '') + '>Deal again ' + fmt(this.last) + '</button><button class="btn" data-a="change">Change ante</button>';
+      else h += '<b>Dealing...</b>';
+      $('#gbody').innerHTML = h + '</div>';
+    },
+    atRisk: function () { return this.busy || (this.phase !== 'bet' && this.phase !== 'done'); },
+    onClick: function (a, el) {
+      var ph = this.phase;
+      if (ph === 'bet') {
+        if (a === 'chip') { this.bet += +el.dataset.v; C.Sfx.chip(); } else if (a === 'clear') this.bet = 0;
+        else if (a === 'deal' && this.bet > 0 && this.bet <= C.bank.balance) return this.deal();
+        this.render();
+      }
+      else if (a === 'same') { this.reset(); this.bet = this.last; if (this.bet <= C.bank.balance) this.deal(); else this.render(); }
+      else if (a === 'change') this.open();
+      else if (ph === 'draw') { if (a === 'hold') { var i = +el.dataset.i; this.hold[i] = !this.hold[i]; C.Sfx.card(); this.render(); } else if (a === 'draw') this.draw(); }
+      else if (ph === 'act') {
+        if (a === 'fold') this.fold(); else if (a === 'check') this.check(); else if (a === 'bet' && C.bank.balance >= 2 * this.bet) this.playerBet();
+      }
+      else if (ph === 'respond') { if (a === 'fold') this.fold(); else if (a === 'call' && C.bank.balance >= 2 * this.bet) { C.bank.add(-2 * this.bet); this.put += 2 * this.bet; this.pot += 2 * this.bet; C.Sfx.chip(); this.showdown(); } }
+    },
+    deal: function () {
+      var A = this.bet; this.reset(); this.bet = A; this.last = A; C.bank.add(-A); this.put = A; this.pot = 3 * A; this.deck = U.shoe(1);
+      var names = C.shuffle(NAMES.slice()), i; this.p = []; this.bots = [{ name: names[0], cards: [], status: 'ante in', fold: false }, { name: names[1], cards: [], status: 'ante in', fold: false }];
+      for (i = 0; i < 5; i++) { this.p.push(this.deck.pop()); this.bots[0].cards.push(this.deck.pop()); this.bots[1].cards.push(this.deck.pop()); }
+      this.hold = [false, false, false, false, false]; this.phase = 'draw'; this.busy = true; C.Sfx.card(); this.msg = 'Tap the cards to keep, then draw the rest.'; this.render();
+    },
+    draw: function () {
+      var self = this; this.p = this.p.map(function (c, i) { return self.hold[i] ? c : self.deck.pop(); }); C.Sfx.card();
+      this.bots.forEach(function (b) { var k = PM.keep(b.cards), n = 0; b.cards = b.cards.map(function (c, i) { if (k[i]) return c; n++; return self.deck.pop(); }); b.status = n ? 'drew ' + n : 'stands pat'; });
+      this.phase = 'act'; this.msg = 'Check to see what the table does, or bet to push them out.'; this.render();
+    },
+    cat: function (b) { return PM.eval5(b.cards)[0]; },
+    playerBet: function () {
+      var A = this.bet, self = this; C.bank.add(-2 * A); this.put += 2 * A; this.pot += 2 * A; C.Sfx.chip();
+      this.bots.forEach(function (b) { var c = self.cat(b), call = c >= 2 || Math.random() < (c === 1 ? 0.65 : 0.12); if (call) { self.pot += 2 * A; b.status = 'calls'; } else { b.fold = true; b.status = 'folds'; } });
+      this.showdown();
+    },
+    check: function () {
+      var A = this.bet, self = this, any = false;
+      this.bots.forEach(function (b, i) {
+        var c = self.cat(b);
+        if (!any) { var go = Math.random() < (c >= 3 ? 0.85 : c === 2 ? 0.55 : c === 1 ? 0.18 : 0.07); if (go) { any = true; b.status = 'bets ' + fmt(2 * A); self.pot += 2 * A; self.bettor = i; } else b.status = 'checks'; }
+        else { var call = c >= 2 || Math.random() < (c === 1 ? 0.65 : 0.12); if (call) { self.pot += 2 * A; b.status = 'calls'; } else { b.fold = true; b.status = 'folds'; } }
+      });
+      if (any) { this.phase = 'respond'; this.msg = this.bots[this.bettor].name + ' bets ' + fmt(2 * A) + '. Call or fold?'; this.render(); } else this.showdown();
+    },
+    fold: function () {
+      this.phase = 'done'; this.busy = false; this.show = true; this.put = 0; this.msg = 'You fold and lose your ante.'; this.win = false; C.Sfx.lose(); this.render();
+    },
+    showdown: function () {
+      var live = this.bots.filter(function (b) { return !b.fold; }), best = PM.eval5(this.p), winners = [{ you: true }], self = this;
+      this.show = true; this.phase = 'done'; this.busy = false;
+      live.forEach(function (b) { var e = PM.eval5(b.cards), c = PM.cmp(e, best); if (c > 0) { best = e; winners = [b]; } else if (c === 0) winners.push(b); });
+      var youWin = winners.some(function (w) { return w.you; }), share = this.pot / winners.length, net;
+      if (youWin) { C.bank.add(share); net = share - this.put; } else net = -this.put;
+      this.put = 0; this.win = net > 0;
+      var who = winners.map(function (w) { return w.you ? 'You' : w.name; }).join(' and ');
+      if (!live.length) this.msg = 'Everyone folds. You take the pot, +' + fmt(net) + '.';
+      else this.msg = who + (winners.length > 1 ? ' split the pot with ' : ' win with ') + PM.name(best) + (youWin ? '. +' + fmt(net) : '. ' + fmt(net));
+      if (net > 0) { C.Sfx.win(PM.eval5(this.p)[0] >= 5 ? 2 : 1); C.toast('+' + fmt(net)); if (PM.eval5(this.p)[0] >= 6) C.fx.celebrate(3); } else C.Sfx.lose();
+      this.render();
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - Texas Hold'em, fixed limit, against three table bots.
+   Everyone antes. Four betting rounds (pre-flop, flop, turn, river): check or bet, others call or fold, no raising. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$, fmt = C.fmt, U = C.ui, PM = C.PokerMath;
+  C.Games = C.Games || {};
+  var NAMES = ['Marcus', 'Dee', 'Priya', 'Tomas', 'Lucia', 'Hank', 'Mei', 'Otis', 'Rosa', 'Jules'];
+  var STREETS = ['Pre-flop', 'Flop', 'Turn', 'River'];
+
+  var HE = C.Games.holdem = {
+    deck: [], bet: 0, last: 25, p: [], bots: [], board: [], street: 0, phase: 'bet', pot: 0, put: 0, msg: '', win: false, busy: false, show: false, bettor: -1, timers: [],
+    open: function () { $('#gtitle').textContent = "Texas Hold'em"; this.reset(); this.bet = 0; this.msg = 'Choose a bet unit. Everyone antes one unit. Bets are one unit pre-flop and on the flop, two on the turn and river.'; this.render(); },
+    close: function () { this.timers.forEach(clearTimeout); this.timers = []; if (this.phase !== 'bet' && this.phase !== 'done') { C.bank.add(this.put); this.put = 0; } },
+    reset: function () { this.phase = 'bet'; this.p = []; this.bots = []; this.board = []; this.street = 0; this.show = false; this.win = false; this.busy = false; this.pot = 0; this.put = 0; this.bettor = -1; },
+    later: function (ms, fn) { this.timers.push(setTimeout(fn, ms)); },
+    size: function () { return this.street < 2 ? this.bet : 2 * this.bet; },
+    hn: function (hole) { return this.board.length >= 3 ? PM.name(PM.best(hole.concat(this.board))) : ''; },
+    atRisk: function () { return this.busy || (this.phase !== 'bet' && this.phase !== 'done'); },
+    render: function () {
+      var self = this, ph = this.phase, h = '<div class="bots">';
+      this.bots.forEach(function (b) {
+        h += '<div class="hand bot' + (b.fold ? ' folded' : '') + '"><h4>' + b.name + '<b>' + (self.show && !b.fold ? self.hn(b.cards) : '') + '</b><em>' + b.status + '</em></h4><div class="cards sm">'
+          + b.cards.map(function (c) { return U.card(c, !self.show || b.fold, {}); }).join('') + '</div></div>';
+      });
+      h += '</div>';
+      if (this.p.length) {
+        h += '<div class="hand"><h4>Board<b>' + STREETS[Math.min(this.street, 3)] + '</b><em>Pot ' + fmt(this.pot) + '</em></h4><div class="cards">'
+          + [0, 1, 2, 3, 4].map(function (i) { return self.board[i] ? U.card(self.board[i], false, {}) : '<div class="card back" style="opacity:.25"></div>'; }).join('') + '</div></div>';
+        h += '<div class="hand"><h4>You' + '<b>' + this.hn(this.p) + '</b>' + '</h4><div class="cards">' + this.p.map(function (c) { return U.card(c, false, {}); }).join('') + '</div></div>';
+      }
+      h += '<div class="msg' + (this.win ? ' win' : '') + '">' + this.msg + '</div><div class="row c">';
+      var A = this.bet, z = this.size(), bal = C.bank.balance;
+      if (ph === 'bet') h += U.chips([5, 25, 100, 250], 0, 'chip', bal - A) + '<b>Unit ' + fmt(A) + '</b><button class="btn" data-a="clear">Clear</button><button class="btn pri" data-a="deal"' + (A <= 0 ? ' disabled' : '') + '>Deal</button>';
+      else if (ph === 'act') h += '<button class="btn ice" data-a="check">Check</button><button class="btn pri" data-a="bet"' + (bal < z ? ' disabled' : '') + '>Bet ' + fmt(z) + '</button><button class="btn" data-a="fold">Fold</button>';
+      else if (ph === 'respond') h += '<button class="btn pri" data-a="call"' + (bal < z ? ' disabled' : '') + '>Call ' + fmt(z) + '</button><button class="btn" data-a="fold">Fold</button>';
+      else if (ph === 'done') h += '<button class="btn pri" data-a="same"' + (bal < this.last ? ' disabled' : '') + '>Deal again ' + fmt(this.last) + '</button><button class="btn" data-a="change">Change unit</button>';
+      else h += '<b>Dealing...</b>';
+      $('#gbody').innerHTML = h + '</div>';
+    },
+    onClick: function (a, el) {
+      var ph = this.phase;
+      if (ph === 'bet') {
+        if (a === 'chip') { this.bet += +el.dataset.v; C.Sfx.chip(); } else if (a === 'clear') this.bet = 0;
+        else if (a === 'deal' && this.bet > 0 && this.bet <= C.bank.balance) return this.deal();
+        this.render();
+      }
+      else if (a === 'same') { this.reset(); this.bet = this.last; if (this.bet <= C.bank.balance) this.deal(); else this.render(); }
+      else if (a === 'change') this.open();
+      else if (ph === 'act') { if (a === 'fold') this.fold(); else if (a === 'check') this.check(); else if (a === 'bet' && C.bank.balance >= this.size()) this.playerBet(); }
+      else if (ph === 'respond') { if (a === 'fold') this.fold(); else if (a === 'call' && C.bank.balance >= this.size()) { this.pay(this.size()); this.later(350, function () { HE.advance(); }); this.phase = 'wait'; this.render(); } }
+    },
+    pay: function (n) { C.bank.add(-n); this.put += n; this.pot += n; C.Sfx.chip(); },
+    deal: function () {
+      var A = this.bet, i; this.reset(); this.bet = A; this.last = A; C.bank.add(-A); this.put = A; this.pot = 4 * A; this.deck = U.shoe(1);
+      var names = C.shuffle(NAMES.slice()); this.bots = [0, 1, 2].map(function (k) { return { name: names[k], cards: [], status: 'ante in', fold: false }; });
+      for (i = 0; i < 2; i++) { this.p.push(this.deck.pop()); this.bots.forEach(function (b) { b.cards.push(HE.deck.pop()); }); }
+      C.Sfx.card(); this.busy = true; this.phase = 'act'; this.msg = 'Pre-flop. Check, or bet ' + fmt(this.size()) + ' to push the table.'; this.render();
+    },
+    // does this bot want to call a bet?
+    wantsCall: function (b) { var s = PM.strength(b.cards, this.board); return s > 0.3 + Math.random() * 0.18 + this.street * 0.03; },
+    wantsBet: function (b) { var s = PM.strength(b.cards, this.board); return (s > 0.66 && Math.random() < 0.7) || Math.random() < 0.06; },
+    botsReact: function (z, except) {
+      var any = false;
+      this.bots.forEach(function (b, i) { if (b.fold || i === except) return; if (HE.wantsCall(b)) { HE.pot += z; b.status = 'calls'; any = true; } else { b.fold = true; b.status = 'folds'; } });
+      return any;
+    },
+    playerBet: function () {
+      var z = this.size(); this.pay(z); this.botsReact(z, -1);
+      this.phase = 'wait'; this.render(); this.later(500, function () { HE.advance(); });
+    },
+    check: function () {
+      var z = this.size(), self = this, bettor = -1;
+      this.bots.forEach(function (b, i) { if (bettor < 0 && !b.fold && self.wantsBet(b)) bettor = i; });
+      if (bettor < 0) { this.bots.forEach(function (b) { if (!b.fold) b.status = 'checks'; }); this.phase = 'wait'; this.render(); this.later(450, function () { HE.advance(); }); return; }
+      var bb = this.bots[bettor]; bb.status = 'bets ' + fmt(z); this.pot += z; this.bettor = bettor; this.botsReact(z, bettor);
+      this.phase = 'respond'; this.msg = bb.name + ' bets ' + fmt(z) + '. Call or fold?'; this.render(); C.Sfx.chip();
+    },
+    fold: function () {
+      this.phase = 'done'; this.busy = false; this.show = true; this.put = 0; this.msg = 'You fold and lose what you put in.'; this.win = false; C.Sfx.lose(); this.render();
+    },
+    advance: function () {
+      var live = this.bots.filter(function (b) { return !b.fold; });
+      if (!live.length) return this.finish([{ you: true }], null);
+      if (this.street === 3) return this.finish(null, null);
+      this.street++; C.Sfx.card();
+      var n = this.street === 1 ? 3 : 1, i; this.deck.pop(); for (i = 0; i < n; i++) this.board.push(this.deck.pop());
+      this.bots.forEach(function (b) { if (!b.fold) b.status = ''; });
+      this.phase = 'act'; this.msg = STREETS[this.street] + '. Check, or bet ' + fmt(this.size()) + '.'; this.render();
+    },
+    finish: function (forced) {
+      var self = this, live = this.bots.filter(function (b) { return !b.fold; }), winners, top, ye, net, label;
+      this.show = true; this.phase = 'done'; this.busy = false;
+      if (forced) { winners = forced; label = null; }
+      else {
+        ye = PM.best(this.p.concat(this.board)); top = ye; winners = [{ you: true }];
+        live.forEach(function (b) { var e = PM.best(b.cards.concat(self.board)), c = PM.cmp(e, top); if (c > 0) { top = e; winners = [b]; } else if (c === 0) winners.push(b); });
+        label = PM.name(top);
+      }
+      var youWin = winners.some(function (w) { return w.you; }), share = this.pot / winners.length;
+      if (youWin) { C.bank.add(share); net = share - this.put; } else net = -this.put;
+      this.put = 0; this.win = net > 0;
+      var who = winners.map(function (w) { return w.you ? 'You' : w.name; }).join(' and ');
+      if (forced) this.msg = 'Everyone folds. You take the pot, +' + fmt(net) + '.';
+      else this.msg = who + (winners.length > 1 ? ' split the pot with ' : ' win with ') + label + (youWin ? '. +' + fmt(net) : '. ' + fmt(net));
+      if (net > 0) { C.Sfx.win(top && top[0] >= 5 ? 2 : 1); C.toast('+' + fmt(net)); if (top && top[0] >= 6) C.fx.celebrate(3); } else C.Sfx.lose();
+      this.render();
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - lightning roulette: single zero, every spin 3 lucky numbers pay 50x to 500x, other straight-ups pay 29 to 1. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, $ = C.$, fmt = C.fmt, U = C.ui, RED = null;
+  C.Games = C.Games || {};
+  var MULTS = [[50, 0.5], [100, 0.3], [200, 0.12], [300, 0.06], [500, 0.02]];
+  function pickMult() { var r = Math.random(); for (var i = 0; i < MULTS.length; i++) { r -= MULTS[i][1]; if (r < 0) return MULTS[i][0]; } return 50; }
+  function pay(k, n, lucky) {
+    if (k[0] === 'n') { var v = +k.slice(1); if (v !== n) return 0; for (var i = 0; i < lucky.length; i++) if (lucky[i].n === n) return lucky[i].m; return 30; }
+    if (n === 0) return 0;
+    switch (k) {
+      case 'dozen1': return n <= 12 ? 3 : 0; case 'dozen2': return n > 12 && n <= 24 ? 3 : 0; case 'dozen3': return n > 24 ? 3 : 0;
+      case 'col1': return n % 3 === 1 ? 3 : 0; case 'col2': return n % 3 === 2 ? 3 : 0; case 'col3': return n % 3 === 0 ? 3 : 0;
+      case 'low': return n <= 18 ? 2 : 0; case 'high': return n >= 19 ? 2 : 0; case 'even': return n % 2 === 0 ? 2 : 0; case 'odd': return n % 2 === 1 ? 2 : 0;
+      case 'red': return C.RED[n] ? 2 : 0; case 'black': return !C.RED[n] ? 2 : 0;
+    }
+    return 0;
+  }
+  C.RoulettePay = pay;
+
+  var RL = C.Games.roulette = {
+    bets: {}, prev: null, chip: 5, hist: [], counts: [], lucky: [], msg: '', win: false, busy: false, st: null,
+    open: function (st) {
+      $('#gtitle').textContent = 'Lightning Roulette'; this.st = st; st.wheel.owned = true; this.bets = {}; this.busy = false; this.win = false;
+      if (!this.counts.length) for (var i = 0; i < 37; i++) this.counts.push(0);
+      this.rollLucky(); this.msg = 'Lucky numbers pay up to 500 to 1. Tap the board to bet, then spin.'; this.render();
+    },
+    close: function () { if (this.st) this.st.wheel.owned = false; this.clear(true); },
+    rollLucky: function () { var s = {}, out = []; while (out.length < 3) { var n = 1 + Math.floor(Math.random() * 36); if (!s[n]) { s[n] = 1; out.push({ n: n, m: pickMult() }); } } this.lucky = out; },
+    total: function () { var t = 0; for (var k in this.bets) t += this.bets[k]; return t; },
+    clear: function (silent) { C.bank.add(this.total()); this.bets = {}; if (!silent) this.render(); },
+    luckyOf: function (n) { for (var i = 0; i < this.lucky.length; i++) if (this.lucky[i].n === n) return this.lucky[i]; return null; },
+    cell: function (k, label, cls, style) {
+      var a = this.bets[k], lk = k[0] === 'n' ? this.luckyOf(+k.slice(1)) : null;
+      return '<button class="cell ' + cls + (lk ? ' lucky' : '') + '" data-a="bet" data-k="' + k + '" style="' + style + '">' + label + (lk ? '<sup>⚡' + lk.m + '</sup>' : '') + (a ? '<em>' + a + '</em>' : '') + '</button>';
+    },
+    render: function () {
+      var b = '<div class="board">' + this.cell('n0', '0', 'zero', 'grid-row:1/4;grid-column:1'), r, c, self = this;
+      for (r = 0; r < 3; r++) for (c = 0; c < 12; c++) { var n = (c + 1) * 3 - r; b += this.cell('n' + n, n, C.RED[n] ? 'red' : 'blk', 'grid-row:' + (r + 1) + ';grid-column:' + (c + 2)); }
+      b += this.cell('col3', '2:1', 'out', 'grid-row:1;grid-column:14') + this.cell('col2', '2:1', 'out', 'grid-row:2;grid-column:14') + this.cell('col1', '2:1', 'out', 'grid-row:3;grid-column:14');
+      b += this.cell('dozen1', '1st 12', 'out', 'grid-row:4;grid-column:2/6') + this.cell('dozen2', '2nd 12', 'out', 'grid-row:4;grid-column:6/10') + this.cell('dozen3', '3rd 12', 'out', 'grid-row:4;grid-column:10/14');
+      [['low', '1-18', 'out', 2], ['even', 'Even', 'out', 4], ['red', 'Red', 'red', 6], ['black', 'Black', 'blk', 8], ['odd', 'Odd', 'out', 10], ['high', '19-36', 'out', 12]].forEach(function (a) { b += self.cell(a[0], a[2] === 'out' ? a[1] : '', a[2], 'grid-row:5;grid-column:' + a[3] + '/' + (a[3] + 2)); });
+      b += '</div>';
+      var hist = this.hist.map(function (n) { return '<span class="pip ' + (n === 0 ? 'zero' : C.RED[n] ? 'red' : 'blk') + '">' + n + '</span>'; }).join(''), hot = 0, hn = -1;
+      this.counts.forEach(function (v, i) { if (v > hot) { hot = v; hn = i; } });
+      $('#gbody').innerHTML = '<div class="row">' + U.chips([1, 5, 25, 100], this.chip, 'chip') + '<b>On the table ' + fmt(this.total()) + '</b><div class="hist">' + hist + '</div>' + (hot >= 2 ? '<span class="hot">Hot ' + hn + ' (' + hot + 'x)</span>' : '') + '</div>'
+        + '<div class="lightning">' + this.lucky.map(function (l) { return '<span>⚡ ' + l.n + ' <b>' + l.m + 'x</b></span>'; }).join('') + '</div>'
+        + '<div class="board-wrap">' + b + '</div><div class="msg' + (this.win ? ' win' : '') + '">' + this.msg + '</div>'
+        + '<div class="row c"><button class="btn" data-a="clear"' + (this.busy ? ' disabled' : '') + '>Clear bets</button><button class="btn" data-a="repeat"' + (this.busy || !this.prev ? ' disabled' : '') + '>Repeat last</button><button class="btn pri" data-a="spin"' + (this.busy || this.total() <= 0 ? ' disabled' : '') + '>Spin</button></div>';
+    },
+    onKey: function (k) { if (k === ' ' && !this.busy && this.total() > 0) this.spin(); },
+    atRisk: function () { return this.busy || this.total() > 0; },
+    onClick: function (a, el) {
+      if (this.busy) return;
+      if (a === 'chip') { this.chip = +el.dataset.v; C.Sfx.chip(); this.render(); }
+      else if (a === 'bet') { if (C.bank.balance < this.chip) { this.msg = 'Not enough chips for that bet.'; this.win = false; this.render(); return; } C.bank.add(-this.chip); var k = el.dataset.k; this.bets[k] = (this.bets[k] || 0) + this.chip; C.Sfx.chip(); this.render(); }
+      else if (a === 'clear') this.clear();
+      else if (a === 'repeat' && this.prev) { this.clear(true); var t = 0; for (var k2 in this.prev) t += this.prev[k2]; if (t > C.bank.balance) { this.msg = 'Not enough chips to repeat.'; this.win = false; this.render(); return; } C.bank.add(-t); this.bets = Object.assign({}, this.prev); C.Sfx.chip(); this.render(); }
+      else if (a === 'spin' && this.total() > 0) this.spin();
+    },
+    spin: function () {
+      var self = this, n = Math.floor(Math.random() * 37), D = 7.2, bets = this.bets, total = this.total(), lucky = this.lucky, st = this.st, w = st.wheel;
+      this.busy = true; this.win = false; this.msg = 'No more bets...'; this.render(); this.prev = Object.assign({}, bets); this.bets = {};
+      C.Sfx.rattle(D - 0.5);
+      C.World.camTo([w.world.x + 0.6, 2.0, w.world.z + 1.5], [w.world.x, 1.0, w.world.z], 1.2);
+      C.Level.spinWheel(w, n, D, function () {
+        self.hist.unshift(n); self.hist = self.hist.slice(0, 10); self.counts[n]++;
+        var ret = 0, k; for (k in bets) ret += bets[k] * pay(k, n, lucky);
+        C.bank.add(ret); self.busy = false;
+        var col = n === 0 ? 'green' : C.RED[n] ? 'red' : 'black', lk = self.luckyOf(n), straight = bets['n' + n] || 0;
+        if (ret > total) { self.msg = n + ' ' + col + '. You win ' + fmt(ret) + '!' + (lk && straight ? ' Lightning x' + lk.m + '!' : ''); self.win = true; C.Sfx.win(ret >= total * 10 ? 2 : 1); C.toast('+' + fmt(ret - total)); if (ret >= total * 10) C.fx.celebrate(4); }
+        else if (ret > 0) self.msg = n + ' ' + col + '. You get back ' + fmt(ret) + '.';
+        else { self.msg = n + ' ' + col + '. No win this spin.' + (lk ? ' Lucky number x' + lk.m + ' hit, nobody had it.' : ''); C.Sfx.lose(); }
+        self.rollLucky(); C.World.camBack(); if (C.panelOpen()) self.render();
+      });
+    }
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - player, camera, input, interaction, minimap and the main loop. */
+(function (G) {
+  var C = G.Casino = G.Casino || {}, E = C.E, L = C.Level, $ = C.$, clamp = C.clamp, W = C.World = {};
+  var player = { x: 0, z: 0, yaw: 0, pitch: 0 }, keys = {}, mode = 'intro', level = null, current = null, curSt = null, nearest = null;
+  var fly = null, bob = 0, bobT = 0, vw = 1, vh = 1, viewShift = 0, last = 0, clockT = 0, ptr = {}, stickV = { x: 0, y: 0 }, isTouch = false, ambT = 0, mapT = 0;
+  var visited, panel, cv, cell = { c: -1, r: -1 }, found = 0;
+  C.fx = { celebrate: function () {}, jackpot: function () {} };
+  C.panelOpen = function () { return panel && !panel.hidden; };
+
+  function applyCam() { E.camera.position.set(player.x, 1.65 + bob, player.z); E.camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ'); }
+  function resize() { vw = window.innerWidth; vh = window.innerHeight; E.renderer.setSize(vw, vh, false); E.camera.aspect = vw / vh; E.camera.updateProjectionMatrix(); }
+  function camFor(st) {
+    var m = clamp(1.3 / E.camera.aspect, 1, 2), l = new THREE.Vector3(st.cam.l[0], st.cam.l[1], st.cam.l[2]), p = new THREE.Vector3(st.cam.p[0], st.cam.p[1], st.cam.p[2]);
+    if (st.type !== 'slots') { p.sub(l).multiplyScalar(m).add(l); p.y = Math.min(p.y, 4.2); }
+    return { p: p, l: l };
+  }
+  var tmpCam;
+  function lookQuat(pos, look) { tmpCam = tmpCam || new THREE.PerspectiveCamera(); tmpCam.position.copy(pos); tmpCam.lookAt(look); return tmpCam.quaternion.clone(); }
+  function freeQuat() { return new THREE.Quaternion().setFromEuler(new THREE.Euler(player.pitch, player.yaw, 0, 'YXZ')); }
+  function flyTo(pos, quat, dur, done) { fly = { t: 0, dur: dur, p0: E.camera.position.clone(), q0: E.camera.quaternion.clone(), p1: pos, q1: quat, done: done }; }
+  W.level = function () { return level; };
+  W.camTo = function (p, l, dur) { if (mode !== 'game') return; var P = new THREE.Vector3(p[0], p[1], p[2]); flyTo(P, lookQuat(P, new THREE.Vector3(l[0], l[1], l[2])), dur); };
+  W.camBack = function () { if (mode !== 'game' || !curSt) return; var c = camFor(curSt); flyTo(c.p, lookQuat(c.p, c.l), 1.0); };
+
+  function enterGame(st) {
+    if (mode !== 'free' || st.taken) return;
+    current = C.Games[st.type]; curSt = st; current.open(st); mode = 'entering'; panel.hidden = false; document.body.classList.add('seated');
+    if (document.exitPointerLock) document.exitPointerLock();
+    $('#prompt').hidden = true; $('#cross').hidden = true;
+    var c = camFor(st); flyTo(c.p, lookQuat(c.p, c.l), 0.9, function () { mode = 'game'; });
+  }
+  function leaveGame() {
+    if (mode !== 'game' && mode !== 'entering') return;
+    if (current && current.busy) { C.toast('Finish the round first', true); return; }
+    if (current) current.close(); current = null; curSt = null; panel.hidden = true; document.body.classList.remove('seated'); mode = 'leaving'; $('#cross').hidden = false;
+    flyTo(new THREE.Vector3(player.x, 1.65, player.z), freeQuat(), 0.7, function () { mode = 'free'; });
+  }
+
+  function look(dx, dy) { player.yaw -= dx * 0.0024; player.pitch = clamp(player.pitch - dy * 0.0024, -1.2, 1.2); }
+  function on(sel, evt, fn) { var el = $(sel); if (el) el.addEventListener(evt, fn); }
+  W.atRisk = function () { if (!current) return 0; return (current.busy || (current.atRisk && current.atRisk())) ? 1 : 0; };
+  W.kickOut = function () {
+    if (current) { try { current.busy = false; current.close(); } catch (e) {} current = null; curSt = null; }
+    panel.hidden = true; document.body.classList.remove('seated'); $('#cross').hidden = false; fly = null;
+    mode = 'free'; applyCam(); if (document.exitPointerLock) document.exitPointerLock();
+  };
+  W.restart = function () { W.newMaze(7); mode = 'free'; };
+  function bindInput() {
+    window.addEventListener('keydown', function (e) {
+      var k = e.key.toLowerCase(); keys[k] = true;
+      if (mode === 'intro') return;
+      if (k === 'l') { if (!C.Run.isBusted()) C.Run.toggle(); }
+      else if (k === 'escape' && C.Run.boardOpen()) C.Run.close();
+      else if (C.Run.blocking()) return;
+      else if (k === 'e' && mode === 'free' && nearest) enterGame(nearest);
+      else if (k === 'escape' && (mode === 'game' || mode === 'entering')) leaveGame();
+      else if (k === 'm') { C.Sfx.start(); $('#snd').click(); }
+      else if (k === 'tab' && mode !== 'intro') { e.preventDefault(); $('#map').classList.toggle('big'); }
+      else if (mode === 'game' && current && current.onKey && !e.repeat) current.onKey(k);
+      if ((k === 'arrowup' || k === 'arrowdown' || k === ' ') && mode !== 'intro') e.preventDefault();
+    });
+    window.addEventListener('keyup', function (e) { keys[e.key.toLowerCase()] = false; });
+    window.addEventListener('blur', function () { for (var k in keys) keys[k] = false; });
+    cv.addEventListener('pointerdown', function (e) {
+      if (mode !== 'free') return;
+      if (e.pointerType === 'mouse') { ptr[e.pointerId] = { kind: 'look' }; if (!document.pointerLockElement && cv.requestPointerLock) { try { var r = cv.requestPointerLock(); if (r && r.catch) r.catch(function () {}); } catch (err) {} } }
+      else {
+        var left = e.clientX < vw * 0.45; ptr[e.pointerId] = { kind: left ? 'stick' : 'look', x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY };
+        if (left) { var s = $('#stick'); s.hidden = false; s.style.left = e.clientX + 'px'; s.style.top = e.clientY + 'px'; }
+      }
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    cv.addEventListener('pointermove', function (e) {
+      var p = ptr[e.pointerId]; if (!p || mode !== 'free' || e.pointerType === 'mouse') return;
+      if (p.kind === 'look') { look((e.clientX - p.lx) * 1.4, (e.clientY - p.ly) * 1.4); p.lx = e.clientX; p.ly = e.clientY; }
+      else { var dx = (e.clientX - p.x0) / 50, dy = (e.clientY - p.y0) / 50, l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } stickV = { x: dx, y: dy }; $('#knob').style.transform = 'translate(' + dx * 35 + 'px,' + dy * 35 + 'px)'; }
+    });
+    var endPtr = function (e) { var p = ptr[e.pointerId]; if (p && p.kind === 'stick') { stickV = { x: 0, y: 0 }; $('#stick').hidden = true; $('#knob').style.transform = ''; } delete ptr[e.pointerId]; };
+    cv.addEventListener('pointerup', endPtr); cv.addEventListener('pointercancel', endPtr);
+    document.addEventListener('mousemove', function (e) { if (mode === 'free' && (document.pointerLockElement === cv || (e.buttons & 1))) look(e.movementX, e.movementY); });
+    on('#leave', 'click', leaveGame);
+    on('#lbbtn', 'click', function () { C.Run.toggle(); });
+    on('#lbclose', 'click', function () { C.Run.close(); });
+    on('#bustboard', 'click', function () { C.Run.open(); });
+    on('#bustnew', 'click', function () { C.Run.newNight(); });
+    $('#gbody').addEventListener('click', function (e) { var el = e.target.closest('[data-a]'); if (el && current && !el.disabled) current.onClick(el.dataset.a, el); });
+    $('#pbtn').addEventListener('click', function () { if (nearest) enterGame(nearest); });
+    $('#snd').addEventListener('click', function () { C.Sfx.start(); $('#snd').textContent = C.Sfx.toggle() ? 'Sound off' : 'Sound on'; });
+    $('#map').addEventListener('click', function () { $('#map').classList.toggle('big'); });
+    var showLogin = function () {
+      var si = C.Run.signedIn(); $('#welcome').hidden = !si; $('#fields').hidden = si; $('#lerr').hidden = true;
+      if (si) $('#wname').textContent = 'Welcome back, ' + C.Run.username();
+    };
+    showLogin();
+    on('#switch', 'click', function () { C.Run.signOut(); showLogin(); });
+    on('#login', 'submit', function (e) {
+      e.preventDefault();
+      if (!C.Run.signedIn()) {
+        var err = C.Run.signIn($('#lemail').value, $('#luser').value);
+        if (err) { var le = $('#lerr'); le.textContent = err; le.hidden = false; return; }
+      }
+      $('#intro').hidden = true; mode = 'free'; C.Sfx.start(); if (C.Run.isBusted()) C.Run.showBust();
+      if (!isTouch && !C.Run.isBusted() && cv.requestPointerLock) { try { var r = cv.requestPointerLock(); if (r && r.catch) r.catch(function () {}); } catch (e2) {} }
+      setTimeout(function () { $('#hint').style.opacity = 0; }, 16000);
+    });
+  }
+
+  function move(dt) {
+    var f = 0, s = 0, m = level.maze;
+    if (keys.w || keys.arrowup) f += 1; if (keys.s || keys.arrowdown) f -= 1; if (keys.d) s += 1; if (keys.a) s -= 1;
+    if (keys.arrowleft) player.yaw += dt * 1.8; if (keys.arrowright) player.yaw -= dt * 1.8;
+    f -= stickV.y; s += stickV.x; var len = Math.hypot(f, s); if (len > 1) { f /= len; s /= len; }
+    var sp = (keys.shift ? 6.5 : 4) * dt, fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw), rx = Math.cos(player.yaw), rz = -Math.sin(player.yaw);
+    var nx = player.x + (fx * f + rx * s) * sp, nz = player.z + (fz * f + rz * s) * sp, R = 0.35;
+    nx = clamp(nx, -m.w / 2 + 0.6, m.w / 2 - 0.6); nz = clamp(nz, -m.d / 2 + 0.6, m.d / 2 - 0.6);
+    var cs = level.colliders;
+    for (var it = 0; it < 2; it++) for (var i = 0; i < cs.length; i++) {
+      var b = cs[i]; if (nx < b.x0 - R || nx > b.x1 + R || nz < b.z0 - R || nz > b.z1 + R) continue;
+      var cx = clamp(nx, b.x0, b.x1), cz = clamp(nz, b.z0, b.z1), dx = nx - cx, dz = nz - cz, d = Math.hypot(dx, dz);
+      if (d < R) { if (d > 1e-4) { nx = cx + dx / d * R; nz = cz + dz / d * R; } else { nx = player.x; nz = player.z; } }
+    }
+    var moved = Math.hypot(nx - player.x, nz - player.z); player.x = nx; player.z = nz; bobT += moved * 2.4; bob = moved > 0.0005 ? Math.sin(bobT) * 0.025 : bob * 0.9;
+  }
+  function findNearest() {
+    var best = null, bd = 1e9, st = level.stations;
+    for (var i = 0; i < st.length; i++) { var s = st[i]; if (s.taken) continue; var d = Math.hypot(player.x - s.x, player.z - s.z); if (d < s.r + 0.5 && d < bd) { bd = d; best = s; } }
+    nearest = best; var p = $('#prompt');
+    if (best && mode === 'free') { p.hidden = false; $('#ptxt').textContent = best.label; } else p.hidden = true;
+  }
+
+  /* ---- minimap with fog of war ---- */
+  function reveal() {
+    var m = level.maze, c = m.cellAt(player.x, player.z);
+    if (!m.inside(c.c, c.r) || (c.c === cell.c && c.r === cell.r)) return; cell = c;
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      var rr = c.r + dr, cc = c.c + dc; if (m.inside(cc, rr) && !visited[rr][cc]) visited[rr][cc] = 1;
+    }
+    visited[c.r][c.c] = 2;
+    var a = m.areaAt(c.c, c.r); if (a) for (var r = a.r0; r <= a.r1; r++) for (var c2 = a.c0; c2 <= a.c1; c2++) visited[r][c2] = 2;
+  }
+  function drawMap() {
+    var cvs = $('#map canvas'), g = cvs.getContext('2d'), m = level.maze, big = $('#map').classList.contains('big'), px = big ? 30 : 15, dpr = 2;
+    cvs.width = m.cols * px * dpr + 8; cvs.height = m.rows * px * dpr + 8; cvs.style.width = (cvs.width / dpr) + 'px'; cvs.style.height = (cvs.height / dpr) + 'px';
+    g.setTransform(dpr, 0, 0, dpr, 4, 4); g.clearRect(-4, -4, cvs.width, cvs.height);
+    var r, c, v;
+    for (r = 0; r < m.rows; r++) for (c = 0; c < m.cols; c++) {
+      v = visited[r][c]; if (!v) continue;
+      var a = m.areaAt(c, r);
+      g.fillStyle = a ? (v === 2 ? '#8a2a14' : '#4a1812') : (v === 2 ? '#5e1a16' : '#35110f'); g.fillRect(c * px, r * px, px, px);
+    }
+    g.strokeStyle = '#f2b84b'; g.lineWidth = px * 0.28; g.lineCap = 'round'; g.beginPath(); // carpet ribbons
+    for (r = 0; r < m.rows; r++) for (c = 0; c < m.cols; c++) {
+      if (!visited[r][c]) continue;
+      if (c < m.cols - 1 && visited[r][c + 1] && m.edge(c, r, 1) > 0) { g.moveTo((c + 0.5) * px, (r + 0.5) * px); g.lineTo((c + 1.5) * px, (r + 0.5) * px); }
+      if (r < m.rows - 1 && visited[r + 1][c] && m.edge(c, r, 2) > 0) { g.moveTo((c + 0.5) * px, (r + 0.5) * px); g.lineTo((c + 0.5) * px, (r + 1.5) * px); }
+    }
+    g.stroke();
+    g.font = '700 ' + (px * 0.7) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    m.areas.forEach(function (a) { if (visited[a.r0 + 1][a.c0 + 1] === 2) { g.fillStyle = '#e8f4ff'; g.fillText({ slots: 'S', blackjack: 'B', poker: 'P', holdem: 'H', roulette: 'R', hub: '\u2605' }[a.type], (a.c0 + 1.5) * px, (a.r0 + 1.5) * px); } });
+    g.fillStyle = '#fff0b0'; level.chips.forEach(function (ch) { if (!ch.got && visited[ch.r][ch.c]) { g.beginPath(); g.arc((ch.c + 0.5) * px, (ch.r + 0.5) * px, px * 0.2, 0, 7); g.fill(); } });
+    var ux = (player.x + m.w / 2) / m.cell * px, uz = (player.z + m.d / 2) / m.cell * px;
+    g.save(); g.translate(ux, uz); g.rotate(-player.yaw); g.fillStyle = '#bfe6ff'; g.beginPath(); g.moveTo(0, -px * 0.36); g.lineTo(px * 0.24, px * 0.26); g.lineTo(-px * 0.24, px * 0.26); g.closePath(); g.fill(); g.restore();
+  }
+
+  W.newMaze = function (seed) {
+    if (level) L.dispose(level);
+    level = L.build(seed); found = 0;
+    visited = []; for (var r = 0; r < level.maze.rows; r++) visited.push(new Array(level.maze.cols).fill(0));
+    cell = { c: -1, r: -1 }; player.x = level.start.x; player.z = level.start.z; player.yaw = 0; player.pitch = 0; applyCam();
+    $('#found').textContent = '0/' + level.chips.length; reveal(); drawMap();
+    if (document.fonts && document.fonts.load) document.fonts.load('60px Limelight').then(function () { L.redrawSigns(level); }).catch(function () {});
+  };
+
+  var hooks = {
+    chip: function (ch) { found++; C.bank.add(ch.value); C.Sfx.coin(); C.toast('Gold chip +' + C.fmt(ch.value)); $('#found').textContent = found + '/' + level.chips.length; },
+    npcWin: function (p, dist) {
+      var rx = Math.cos(player.yaw), rz = -Math.sin(player.yaw), pan = ((p.x - player.x) * rx + (p.z - player.z) * rz) / Math.max(dist, 1);
+      C.Sfx.spot('win', dist, pan);
+    }
+  };
+  C.fx.celebrate = function (s) { if (level) L.celebrate(level, s); };
+  C.fx.jackpot = function () { if (level) { L.flashAt(player.x, 2.6, player.z, true); } };
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    var dt = Math.min(0.05, (now - last) / 1000); last = now; clockT += dt;
+    if (C.Run) { C.Run.tick(dt, { atRisk: W.atRisk() }); if (C.Run.blocking() && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); }
+    if (mode === 'free' && !C.Run.blocking()) { move(dt); applyCam(); findNearest(); reveal(); }
+    else if (fly) {
+      fly.t += dt; var u = Math.min(1, fly.t / fly.dur), s = u * u * (3 - 2 * u);
+      E.camera.position.copy(fly.p0).lerp(fly.p1, s); E.camera.quaternion.copy(fly.q0).slerp(fly.q1, s);
+      if (u >= 1) { var d = fly.done; fly = null; if (d) d(); if (mode === 'free') applyCam(); }
+    }
+    var tgt = (mode === 'game' || mode === 'entering') ? clamp(panel.offsetHeight / (2 * vh), 0, 0.4) : 0; viewShift += (tgt - viewShift) * Math.min(1, dt * 6);
+    if (viewShift > 0.002) E.camera.setViewOffset(vw, vh, 0, Math.round(vh * viewShift), vw, vh); else if (E.camera.view && E.camera.view.enabled) E.camera.clearViewOffset();
+    var px = mode === 'free' || !curSt ? player : { x: E.camera.position.x, z: E.camera.position.z, yaw: player.yaw };
+    E.light.position.set(E.camera.position.x, 2.6, E.camera.position.z);
+    L.update(level, dt, clockT, px, hooks);
+    ambT -= dt; if (ambT <= 0) { ambT = 0.3; var slotA = level.maze.areas.filter(function (a) { return a.type === 'slots'; })[0], d2 = Math.hypot(px.x - slotA.x, px.z - slotA.z), cc = level.maze.cellAt(px.x, px.z); C.Sfx.ambience(clamp(1 - (d2 - 8) / 34, 0, 1), 1, mode === 'game'); }
+    mapT -= dt; if (mapT <= 0 && mode !== 'game') { mapT = 0.2; drawMap(); }
+    var jv = $('#jpv'); if (jv && C.panelOpen()) jv.textContent = C.fmt(C.Jackpot.value);
+    E.renderer.render(E.scene, E.camera);
+  }
+
+  W.init = function () {
+    cv = $('#gl'); panel = $('#panel'); isTouch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    if (isTouch) { document.body.classList.add('touch'); $('#keys').innerHTML = '<span>Left thumb</span><span>Walk</span><span>Right thumb</span><span>Look around</span><span>Sit down</span><span>Appears near a table or machine</span>'; $('#hint').hidden = true; }
+    if (typeof THREE === 'undefined') { $('#intro').innerHTML = '<p>The 3D engine could not load. Check your connection, or put three.min.js in the vendor folder, then reload.</p>'; return false; }
+    if (!E.init(cv)) { $('#intro').innerHTML = '<p>WebGL is not available in this browser, so the 3D casino cannot start.</p>'; return false; }
+    C.Jackpot.load(); C.bank.load(); resize(); window.addEventListener('resize', resize); bindInput();
+    W.newMaze(7);
+    last = performance.now(); requestAnimationFrame(frame); return true;
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/* Aurum Palace - entry point. */
+(function (G) { G.Casino.World.init(); })(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+</body>
+</html>
